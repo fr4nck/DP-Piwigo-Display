@@ -1,25 +1,344 @@
-.piwigo-display-browser__filters {
-  display: grid;
-  grid-template-columns: minmax(16rem, 2fr) minmax(14rem, 2fr) auto;
-  gap: 1rem;
-  align-items: end;
-  margin-bottom: 1rem;
+/*
+ * Piwigo Display — Drupal Media Library.
+ *
+ * The visual layer intentionally stays inside Drupal's native form system.
+ * Semantic tokens map to common Drupal/Gin variables when available and fall
+ * back to browser system colors. This keeps the module theme-friendly without
+ * hard-coding a second admin theme.
+ */
+
+.piwigo-display-browser {
+  --pd-surface: var(--gin-bg-layer, Canvas);
+  --pd-surface-low: var(--gin-bg-layer2, color-mix(in srgb, Canvas 96%, CanvasText));
+  --pd-surface-high: var(--gin-bg-layer3, color-mix(in srgb, Canvas 91%, CanvasText));
+  --pd-on-surface: var(--gin-color-text, CanvasText);
+  --pd-on-surface-variant: var(--gin-color-text-light, color-mix(in srgb, CanvasText 68%, Canvas));
+  --pd-primary: var(--gin-color-primary, var(--color-blue-600, LinkText));
+  --pd-primary-container: color-mix(in srgb, var(--pd-primary) 12%, var(--pd-surface));
+  --pd-outline: var(--gin-border-color, color-mix(in srgb, CanvasText 18%, Canvas));
+  --pd-outline-strong: color-mix(in srgb, var(--pd-primary) 58%, var(--pd-outline));
+  --pd-focus: var(--gin-color-focus, var(--pd-primary));
+  --pd-radius-sm: .5rem;
+  --pd-radius-md: .75rem;
+  --pd-radius-lg: 1rem;
+  --pd-space-1: .25rem;
+  --pd-space-2: .5rem;
+  --pd-space-3: .75rem;
+  --pd-space-4: 1rem;
+  --pd-space-5: 1.5rem;
+  --pd-shadow-1: 0 .25rem 1rem color-mix(in srgb, CanvasText 9%, transparent);
+  --pd-shadow-2: 0 .5rem 1.5rem color-mix(in srgb, CanvasText 14%, transparent);
+
+  color: var(--pd-on-surface);
+  color-scheme: light dark;
+  container-type: inline-size;
 }
 
-.piwigo-display-browser__thumbnail {
-  width: 120px;
-  height: 80px;
-  object-fit: contain;
+.piwigo-display-browser__header {
+  margin-block-end: var(--pd-space-4);
+}
+
+.piwigo-display-browser__title {
+  margin: 0;
+  color: var(--pd-on-surface);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.piwigo-display-browser__description {
+  max-width: 72ch;
+  margin: var(--pd-space-1) 0 0;
+  color: var(--pd-on-surface-variant);
+}
+
+.piwigo-display-browser__filters {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(15rem, 2fr) minmax(14rem, 2fr) auto;
+  gap: var(--pd-space-3);
+  align-items: end;
+  margin-block-end: var(--pd-space-5);
+  padding: var(--pd-space-3);
+  border: 1px solid var(--pd-outline);
+  border-radius: var(--pd-radius-lg);
+  background: color-mix(in srgb, var(--pd-surface-high) 94%, transparent);
+  box-shadow: var(--pd-shadow-1);
+}
+
+@supports (backdrop-filter: blur(1rem)) {
+  .piwigo-display-browser__filters {
+    backdrop-filter: blur(1rem) saturate(1.05);
+  }
+}
+
+.piwigo-display-browser__filters .form-item,
+.piwigo-display-browser__filters .form-actions {
+  margin-block: 0;
+}
+
+.piwigo-display-browser__filters input,
+.piwigo-display-browser__filters select,
+.piwigo-display-browser__filters button,
+.piwigo-display-browser__filters .button {
+  min-height: 2.5rem;
+}
+
+.piwigo-display-browser__search-button {
+  min-width: 7rem;
+  white-space: nowrap;
+}
+
+.piwigo-display-browser__results-header {
+  display: flex;
+  gap: var(--pd-space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-block-end: var(--pd-space-3);
+}
+
+.piwigo-display-browser__results-header h4 {
+  margin: 0;
+  color: var(--pd-on-surface);
+  font-size: 1rem;
+}
+
+.piwigo-display-browser__result-count {
+  color: var(--pd-on-surface-variant);
+  font-size: .875rem;
+}
+
+.piwigo-display-browser__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: var(--pd-space-3);
+  align-items: stretch;
+}
+
+.piwigo-display-card {
+  position: relative;
+  min-width: 0;
+  overflow: clip;
+  border: 1px solid var(--pd-outline);
+  border-radius: var(--pd-radius-md);
+  background: var(--pd-surface-low);
+  box-shadow: 0 0 0 transparent;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.piwigo-display-card:hover {
+  border-color: var(--pd-outline-strong);
+  background: var(--pd-surface);
+  box-shadow: var(--pd-shadow-1);
+  transform: translateY(-1px);
+}
+
+.piwigo-display-card:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--pd-focus) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.piwigo-display-card:has(.piwigo-display-card__checkbox:checked) {
+  border-color: var(--pd-primary);
+  background: var(--pd-primary-container);
+  box-shadow: 0 0 0 1px var(--pd-primary), var(--pd-shadow-2);
+}
+
+.piwigo-display-card .form-item {
+  position: absolute;
+  z-index: 2;
+  top: var(--pd-space-2);
+  right: var(--pd-space-2);
+  margin: 0;
+  padding: .25rem;
+  border-radius: .5rem;
+  background: color-mix(in srgb, var(--pd-surface) 86%, transparent);
+  box-shadow: 0 .125rem .5rem color-mix(in srgb, CanvasText 16%, transparent);
+}
+
+.piwigo-display-card__checkbox {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  accent-color: var(--pd-primary);
+  cursor: pointer;
+}
+
+.piwigo-display-card__preview {
+  display: grid;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  place-items: center;
+  background: var(--pd-surface-high);
+}
+
+.piwigo-display-card__preview--empty::before {
+  content: "";
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 2px solid var(--pd-outline);
+  border-radius: var(--pd-radius-sm);
+  opacity: .7;
+}
+
+.piwigo-display-card__image {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
   display: block;
+  transition: transform 160ms ease;
+}
+
+.piwigo-display-card:hover .piwigo-display-card__image {
+  transform: scale(1.015);
+}
+
+.piwigo-display-card__meta {
+  display: grid;
+  gap: .1875rem;
+  min-width: 0;
+  padding: var(--pd-space-3);
+}
+
+.piwigo-display-card__name {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--pd-on-surface);
+  font-size: .9375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.piwigo-display-card__details {
+  overflow: hidden;
+  color: var(--pd-on-surface-variant);
+  font-size: .8125rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.piwigo-display-browser__selection-actions {
+  position: sticky;
+  z-index: 4;
+  bottom: 0;
+  display: flex;
+  gap: var(--pd-space-3);
+  align-items: center;
+  justify-content: flex-end;
+  margin-block-start: var(--pd-space-4);
+  padding: var(--pd-space-3);
+  border: 1px solid var(--pd-outline);
+  border-radius: var(--pd-radius-lg);
+  background: color-mix(in srgb, var(--pd-surface-high) 95%, transparent);
+  box-shadow: var(--pd-shadow-1);
+}
+
+@supports (backdrop-filter: blur(1rem)) {
+  .piwigo-display-browser__selection-actions {
+    backdrop-filter: blur(1rem) saturate(1.05);
+  }
+}
+
+.piwigo-display-browser__selection-status {
+  margin-inline-end: auto;
+  color: var(--pd-on-surface-variant);
+  font-size: .875rem;
+}
+
+.piwigo-display-browser.has-selection .piwigo-display-browser__selection-status {
+  color: var(--pd-on-surface);
+  font-weight: 600;
+}
+
+.piwigo-display-browser__hint,
+.piwigo-display-browser__empty {
+  padding: var(--pd-space-5);
+  border: 1px dashed var(--pd-outline);
+  border-radius: var(--pd-radius-md);
+  background: var(--pd-surface-low);
+  color: var(--pd-on-surface-variant);
+  text-align: center;
+}
+
+.piwigo-display-browser__hint strong,
+.piwigo-display-browser__empty strong {
+  color: var(--pd-on-surface);
+}
+
+.piwigo-display-browser__hint p,
+.piwigo-display-browser__empty p {
+  max-width: 52ch;
+  margin: var(--pd-space-2) auto 0;
 }
 
 .piwigo-display-error {
   display: inline-block;
-  padding: .5rem;
+  padding: var(--pd-space-2);
+  color: var(--pd-on-surface);
+}
+
+@container (max-width: 44rem) {
+  .piwigo-display-browser__filters {
+    position: static;
+    grid-template-columns: 1fr;
+  }
+
+  .piwigo-display-browser__search-button {
+    width: 100%;
+  }
+
+  .piwigo-display-browser__selection-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .piwigo-display-browser__selection-status {
+    margin-inline-end: 0;
+  }
 }
 
 @media (max-width: 700px) {
-  .piwigo-display-browser__filters {
-    grid-template-columns: 1fr;
+  .piwigo-display-browser__grid {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piwigo-display-card,
+  .piwigo-display-card__image {
+    transition: none;
+  }
+
+  .piwigo-display-card:hover {
+    transform: none;
+  }
+
+  .piwigo-display-card:hover .piwigo-display-card__image {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .piwigo-display-card,
+  .piwigo-display-browser__filters,
+  .piwigo-display-browser__selection-actions {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .piwigo-display-card:has(.piwigo-display-card__checkbox:checked) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }
