@@ -1,0 +1,5 @@
+media_library:
+  version: 0.1.0
+  css:
+    theme:
+      css/piwigo-display-library.css: {}
