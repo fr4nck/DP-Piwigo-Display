@@ -1,0 +1,28 @@
+piwigo_display.settings:
+  type: config_object
+  label: 'Piwigo Display settings'
+  mapping:
+    base_url:
+      type: uri
+      label: 'Piwigo base URL'
+    api_key:
+      type: string
+      label: 'Piwigo API key'
+    legacy_username:
+      type: string
+      label: 'Legacy Piwigo username'
+    legacy_password:
+      type: string
+      label: 'Legacy Piwigo password'
+    request_timeout:
+      type: integer
+      label: 'HTTP request timeout'
+    cache_ttl:
+      type: integer
+      label: 'Metadata cache lifetime'
+    default_derivative:
+      type: string
+      label: 'Default Piwigo derivative'
+    thumbnail_derivative:
+      type: string
+      label: 'Thumbnail Piwigo derivative'
