@@ -3,3 +3,8 @@ media_library:
   css:
     theme:
       css/piwigo-display-library.css: {}
+  js:
+    js/piwigo-display-library.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
