@@ -1,0 +1,5 @@
+piwigo_display.settings:
+  title: 'Piwigo Display'
+  description: 'Configure the Piwigo connection used by Drupal Media.'
+  route_name: piwigo_display.settings
+  parent: system.admin_config_media
