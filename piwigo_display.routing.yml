@@ -1,0 +1,7 @@
+piwigo_display.settings:
+  path: '/admin/config/media/piwigo-display'
+  defaults:
+    _form: '\Drupal\piwigo_display\Form\SettingsForm'
+    _title: 'Piwigo Display'
+  requirements:
+    _permission: 'administer site configuration'
