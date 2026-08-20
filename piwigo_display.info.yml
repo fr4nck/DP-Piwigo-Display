@@ -1,0 +1,10 @@
+name: Piwigo Display
+type: module
+description: 'Browse a Piwigo photo library from Drupal Media Library and reference Piwigo images without manual download/upload.'
+package: Media
+core_version_requirement: '^10.3 || ^11'
+dependencies:
+  - drupal:media
+  - drupal:media_library
+  - drupal:image
+version: '0.1.0-dev'
