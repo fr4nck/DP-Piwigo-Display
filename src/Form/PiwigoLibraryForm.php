@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\piwigo_display\Form;
 
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\media_library\Form\AddFormBase;
@@ -63,12 +64,35 @@ final class PiwigoLibraryForm extends AddFormBase {
 
     $form['browser'] = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['piwigo-display-browser']],
+      '#attributes' => [
+        'class' => ['piwigo-display-browser'],
+        'data-piwigo-display-browser' => '1',
+      ],
+    ];
+
+    $form['browser']['header'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['piwigo-display-browser__header']],
+    ];
+    $form['browser']['header']['title'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'h3',
+      '#value' => $this->t('Piwigo library'),
+      '#attributes' => ['class' => ['piwigo-display-browser__title']],
+    ];
+    $form['browser']['header']['description'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $this->t('Browse your Piwigo albums or search the full library, then select the images to add to Drupal.'),
+      '#attributes' => ['class' => ['piwigo-display-browser__description']],
     ];
 
     $form['browser']['filters'] = [
       '#type' => 'container',
-      '#attributes' => ['class' => ['piwigo-display-browser__filters']],
+      '#attributes' => [
+        'class' => ['piwigo-display-browser__filters'],
+        'aria-label' => $this->t('Piwigo filters'),
+      ],
     ];
 
     $form['browser']['filters']['piwigo_query'] = [
@@ -98,6 +122,7 @@ final class PiwigoLibraryForm extends AddFormBase {
         ['browser', 'filters', 'piwigo_query'],
         ['browser', 'filters', 'piwigo_album'],
       ],
+      '#attributes' => ['class' => ['piwigo-display-browser__search-button']],
     ];
 
     $results = $form_state->get('piwigo_results');
@@ -105,22 +130,54 @@ final class PiwigoLibraryForm extends AddFormBase {
       $images = is_array($results['images'] ?? NULL) ? $results['images'] : [];
       if (!$images) {
         $form['browser']['empty'] = [
-          '#markup' => '<p>' . $this->t('No Piwigo image matches this search.') . '</p>',
+          '#type' => 'container',
+          '#attributes' => ['class' => ['piwigo-display-browser__empty']],
+          'title' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => $this->t('No image found'),
+          ],
+          'text' => [
+            '#type' => 'html_tag',
+            '#tag' => 'p',
+            '#value' => $this->t('Try another search term or choose a different album.'),
+          ],
         ];
       }
       else {
-        $form['browser']['results'] = [
-          '#type' => 'tableselect',
-          '#header' => [
-            'preview' => $this->t('Preview'),
-            'name' => $this->t('Image'),
-            'dimensions' => $this->t('Dimensions'),
+        $form['browser']['results_header'] = [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['piwigo-display-browser__results-header']],
+          'title' => [
+            '#type' => 'html_tag',
+            '#tag' => 'h4',
+            '#value' => $this->t('Images'),
           ],
-          '#options' => $this->buildImageOptions($images),
-          '#empty' => $this->t('No images found.'),
+          'count' => [
+            '#type' => 'html_tag',
+            '#tag' => 'span',
+            '#value' => $this->formatPlural(count($images), '1 result', '@count results'),
+            '#attributes' => ['class' => ['piwigo-display-browser__result-count']],
+          ],
         ];
 
-        $form['browser']['add_selected'] = [
+        $form['browser']['results'] = $this->buildImageCards($images);
+
+        $form['browser']['selection_actions'] = [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['piwigo-display-browser__selection-actions']],
+        ];
+        $form['browser']['selection_actions']['selection_status'] = [
+          '#type' => 'html_tag',
+          '#tag' => 'span',
+          '#value' => $this->t('No image selected'),
+          '#attributes' => [
+            'class' => ['piwigo-display-browser__selection-status'],
+            'data-piwigo-display-selection-status' => '1',
+            'aria-live' => 'polite',
+          ],
+        ];
+        $form['browser']['selection_actions']['add_selected'] = [
           '#type' => 'submit',
           '#button_type' => 'primary',
           '#value' => $this->t('Add selected images'),
@@ -129,12 +186,24 @@ final class PiwigoLibraryForm extends AddFormBase {
             'callback' => '::updateFormCallback',
             'wrapper' => 'media-library-add-form-wrapper',
           ],
+          '#attributes' => ['class' => ['piwigo-display-browser__add-selected']],
         ];
       }
     }
     else {
       $form['browser']['hint'] = [
-        '#markup' => '<p>' . $this->t('Search the full Piwigo library, or choose an album and click Search.') . '</p>',
+        '#type' => 'container',
+        '#attributes' => ['class' => ['piwigo-display-browser__hint']],
+        'title' => [
+          '#type' => 'html_tag',
+          '#tag' => 'strong',
+          '#value' => $this->t('Find an image in Piwigo'),
+        ],
+        'text' => [
+          '#type' => 'html_tag',
+          '#tag' => 'p',
+          '#value' => $this->t('Search the full library, or choose an album and click Search.'),
+        ],
       ];
     }
 
@@ -170,11 +239,17 @@ final class PiwigoLibraryForm extends AddFormBase {
   }
 
   public function addSelectedSubmit(array &$form, FormStateInterface $form_state): void {
-    $selected = array_values(array_filter(
-      (array) $form_state->getValue(['browser', 'results'], []),
-      static fn ($value): bool => is_scalar($value) && (int) $value > 0,
-    ));
-    $selected = array_map('strval', $selected);
+    $rows = (array) $form_state->getValue(['browser', 'results'], []);
+    $selected = [];
+    foreach ($rows as $row) {
+      if (!is_array($row)) {
+        continue;
+      }
+      $value = $row['selection'] ?? NULL;
+      if (is_scalar($value) && (int) $value > 0) {
+        $selected[] = (string) (int) $value;
+      }
+    }
 
     if (!$selected) {
       $this->messenger()->addWarning($this->t('Select at least one Piwigo image.'));
@@ -182,7 +257,7 @@ final class PiwigoLibraryForm extends AddFormBase {
       return;
     }
 
-    $this->processInputValues($selected, $form, $form_state);
+    $this->processInputValues(array_values(array_unique($selected)), $form, $form_state);
   }
 
   /**
@@ -219,32 +294,93 @@ final class PiwigoLibraryForm extends AddFormBase {
   }
 
   /**
-   * @return array<string, array<string, mixed>>
+   * Builds an accessible visual image grid without replacing Drupal controls.
+   *
+   * @param array<int, array<string, mixed>> $images
+   *
+   * @return array<string, mixed>
    */
-  private function buildImageOptions(array $images): array {
-    $options = [];
+  private function buildImageCards(array $images): array {
+    $cards = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#attributes' => [
+        'class' => ['piwigo-display-browser__grid'],
+        'aria-label' => $this->t('Piwigo images'),
+      ],
+    ];
+
     foreach ($images as $image) {
       $id = (int) ($image['id'] ?? 0);
       if ($id <= 0) {
         continue;
       }
+
+      $key = 'image_' . $id;
+      $name = trim((string) ($image['name'] ?? '')) ?: (string) $this->t('Piwigo image @id', ['@id' => $id]);
+      $author = trim((string) ($image['author'] ?? ''));
+      $width = (int) ($image['width'] ?? 0);
+      $height = (int) ($image['height'] ?? 0);
+      $dimensions = $width > 0 && $height > 0 ? $width . ' × ' . $height : (string) $this->t('Dimensions unavailable');
       $thumbnail = $this->thumbnailManager->getLocalThumbnailUri($image) ?? (string) ($image['thumbnail_url'] ?? '');
-      $options[(string) $id] = [
-        'preview' => $thumbnail !== '' ? [
-          'data' => [
-            '#theme' => 'image',
-            '#uri' => $thumbnail,
-            '#alt' => (string) ($image['name'] ?? ''),
-            '#attributes' => ['class' => ['piwigo-display-browser__thumbnail']],
+
+      $cards[$key] = [
+        '#type' => 'container',
+        '#attributes' => [
+          'class' => ['piwigo-display-card'],
+          'data-piwigo-display-card' => (string) $id,
+        ],
+      ];
+
+      $cards[$key]['selection'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Select @name', ['@name' => $name]),
+        '#title_display' => 'invisible',
+        '#return_value' => (string) $id,
+        '#attributes' => [
+          'class' => ['piwigo-display-card__checkbox'],
+          'data-piwigo-display-selection' => (string) $id,
+        ],
+      ];
+
+      if ($thumbnail !== '') {
+        $cards[$key]['preview'] = [
+          '#theme' => 'image',
+          '#uri' => $thumbnail,
+          '#alt' => $name,
+          '#attributes' => [
+            'class' => ['piwigo-display-card__image'],
+            'loading' => 'lazy',
           ],
-        ] : '',
-        'name' => (string) ($image['name'] ?? ('Piwigo image ' . $id)),
-        'dimensions' => ((int) ($image['width'] ?? 0) > 0 && (int) ($image['height'] ?? 0) > 0)
-          ? ((int) $image['width'] . ' × ' . (int) $image['height'])
-          : '—',
+          '#prefix' => '<div class="piwigo-display-card__preview">',
+          '#suffix' => '</div>',
+        ];
+      }
+      else {
+        $cards[$key]['preview'] = [
+          '#markup' => '<div class="piwigo-display-card__preview piwigo-display-card__preview--empty" aria-hidden="true"></div>',
+        ];
+      }
+
+      $cards[$key]['meta'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['piwigo-display-card__meta']],
+      ];
+      $cards[$key]['meta']['name'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'strong',
+        '#value' => Html::escape($name),
+        '#attributes' => ['class' => ['piwigo-display-card__name']],
+      ];
+      $cards[$key]['meta']['details'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'span',
+        '#value' => Html::escape($author !== '' ? $dimensions . ' · ' . $author : $dimensions),
+        '#attributes' => ['class' => ['piwigo-display-card__details']],
       ];
     }
-    return $options;
+
+    return $cards;
   }
 
 }
