@@ -1,0 +1,19 @@
+services:
+  logger.channel.piwigo_display:
+    parent: logger.channel_base
+    arguments: ['piwigo_display']
+
+  piwigo_display.client:
+    class: Drupal\piwigo_display\Service\PiwigoClient
+    arguments:
+      - '@http_client'
+      - '@config.factory'
+      - '@cache.default'
+      - '@logger.channel.piwigo_display'
+
+  piwigo_display.thumbnail_manager:
+    class: Drupal\piwigo_display\Service\ThumbnailManager
+    arguments:
+      - '@piwigo_display.client'
+      - '@file_system'
+      - '@logger.channel.piwigo_display'
