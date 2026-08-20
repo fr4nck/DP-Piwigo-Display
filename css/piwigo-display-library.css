@@ -1,0 +1,25 @@
+.piwigo-display-browser__filters {
+  display: grid;
+  grid-template-columns: minmax(16rem, 2fr) minmax(14rem, 2fr) auto;
+  gap: 1rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.piwigo-display-browser__thumbnail {
+  width: 120px;
+  height: 80px;
+  object-fit: contain;
+  display: block;
+}
+
+.piwigo-display-error {
+  display: inline-block;
+  padding: .5rem;
+}
+
+@media (max-width: 700px) {
+  .piwigo-display-browser__filters {
+    grid-template-columns: 1fr;
+  }
+}
