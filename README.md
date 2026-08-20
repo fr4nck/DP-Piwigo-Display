@@ -1,0 +1,93 @@
+# Piwigo Display for Drupal
+
+Development module that connects Drupal Media Library to a Piwigo photo library.
+
+The first goal is DAM-style editorial use: editors can browse/search Piwigo, select existing images and create Drupal Media entities that reference the Piwigo image ID. The original file does not need to be downloaded to and uploaded again from the editor's workstation.
+
+## Status
+
+`0.1.0-dev` — initial functional scaffold for Drupal 10.3 and Drupal 11.
+
+Implemented:
+
+- Piwigo Web API client;
+- anonymous access to public Piwigo libraries;
+- Piwigo 16+ personal API key authentication (`X-PIWIGO-API`, required since Piwigo 16.1);
+- optional legacy Piwigo username/password session for pre-16 private libraries and protected binary URLs;
+- album discovery;
+- global image search with `pwg.images.search`;
+- album browsing with `pwg.categories.getImages`;
+- image metadata with `pwg.images.getInfo`;
+- Drupal Media source plugin storing the Piwigo image ID in a string source field;
+- Media Library add form with search, album selector, previews and multi-selection;
+- server-side thumbnail cache under `public://piwigo_display/thumbnails`;
+- field formatter rendering a chosen Piwigo derivative;
+- connection/settings administration.
+
+Not implemented yet:
+
+- non-destructive crop/focal-point workflow;
+- optional local cache/import of display derivatives;
+- authenticated session/proxy transport for Piwigo installations that protect the binary derivative URLs themselves;
+- pagination beyond the first result page in the Media Library UI;
+- advanced tag/date filters;
+- automated Drupal.org packaging/tests.
+
+## Installation
+
+1. Copy the `piwigo_display` directory to `web/modules/custom/` (or `modules/custom/`).
+2. Enable **Piwigo Display**, **Media**, **Media Library** and **Image**.
+3. Open `Administration > Configuration > Media > Piwigo Display`.
+4. Enter the Piwigo base URL, for example `https://photos.example.org`.
+5. For a private Piwigo 16+ library, create a dedicated personal API key in Piwigo and configure it here.
+6. Save, then use **Test saved connection**.
+7. In `Structure > Media types`, create a media type and select **Piwigo image** as its source. Drupal will create the string source field automatically.
+8. Add this media type to the Media Library and use the library to search/browse Piwigo.
+
+## Production secrets
+
+Instead of storing credentials in Drupal configuration, put them in `settings.php`:
+
+```php
+$settings['piwigo_display.base_url'] = 'https://photos.example.org';
+$settings['piwigo_display.api_key'] = 'pkid-…:…';
+
+// Optional compatibility/session account:
+$settings['piwigo_display.legacy_username'] = 'drupal-service';
+$settings['piwigo_display.legacy_password'] = '…';
+```
+
+Values from `settings.php` override exported configuration. Never commit the API key or password. Authenticated connections require HTTPS.
+
+## Piwigo authentication note
+
+Piwigo 16 introduced personal API keys. Starting with Piwigo 16.1, keys are sent in the `X-PIWIGO-API` header.
+
+The key authenticates Web API calls. Most ordinary Piwigo derivative URLs are directly readable, but administrators can configure stricter URL protection. This module therefore caches Media Library thumbnails server-side and sends the API-key header as a best effort when fetching them. An optional legacy service account can also establish a Piwigo session cookie for protected binary assets. A dedicated proxy mode is still planned for deployments where neither direct derivative URLs nor the session transport is sufficient.
+
+## Rendering model
+
+The Drupal Media entity stores only the canonical Piwigo image ID. Metadata and derivative URLs are resolved from Piwigo. This keeps Piwigo as the source of truth and avoids duplicating originals by default.
+
+The initial formatter can render `square`, `thumb`, `xsmall`, `small`, `medium`, `large`, `xlarge` or `xxlarge` derivatives when available.
+
+## Crop roadmap
+
+Cropping should remain non-destructive. The intended design is:
+
+1. keep the Piwigo original canonical and untouched;
+2. store crop/focal-point instructions in Drupal;
+3. generate/cache only the derivative needed by Drupal, or proxy a transformed derivative;
+4. never overwrite the Piwigo source image from an editorial crop action.
+
+This avoids turning Drupal into a second unmanaged DAM.
+
+## Relationship to WP-Piwigo-Display
+
+This is a separate Drupal integration, not a port of the WordPress rendering UI. It reuses the proven Piwigo API concepts but follows Drupal's native Media/Media Library architecture.
+
+## License
+
+Copyright © 2026 fr4nck.
+
+GPL-2.0-or-later, in accordance with Drupal's licensing requirements for distributed modules.
