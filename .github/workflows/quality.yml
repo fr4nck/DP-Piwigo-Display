@@ -33,4 +33,5 @@ jobs:
         run: find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Validate YAML syntax
-        run: ruby -e 'require "yaml"; Dir.glob("**/*.{yml,yaml}").sort.each { |f| YAML.load_file(f); puts "OK #{f}" }'
+        run: |
+          ruby -e 'require "yaml"; Dir.glob("**/*.{yml,yaml}").sort.each { |f| YAML.load_file(f); puts "OK #{f}" }'
