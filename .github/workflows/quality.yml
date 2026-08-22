@@ -39,6 +39,9 @@ jobs:
         run: |
           ruby -e 'require "yaml"; Dir.glob("**/*.{yml,yaml}").sort.each { |f| YAML.load_file(f); puts "OK #{f}" }'
 
+      - name: Run Media Library form-tree regression test
+        run: php tests/form_tree.php
+
   drupal-compatibility:
     runs-on: ubuntu-latest
     strategy:
