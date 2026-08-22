@@ -15,6 +15,11 @@ final class ThumbnailManager {
 
   private const DIRECTORY = 'public://piwigo_display/thumbnails';
 
+  /**
+   * Keep the server-side thumbnail cache aligned with the browser cache window.
+   */
+  private const MAX_AGE = 3600;
+
   public function __construct(
     private readonly PiwigoClient $piwigoClient,
     private readonly FileSystemInterface $fileSystem,
@@ -32,33 +37,47 @@ final class ThumbnailManager {
     }
 
     $extension = $this->guessExtension($url);
-    $destination = self::DIRECTORY . '/' . $id . '.' . $extension;
+    $fingerprint = substr(hash('sha256', $url), 0, 16);
+    $destination = self::DIRECTORY . '/' . $id . '-' . $fingerprint . '.' . $extension;
     $real_path = $this->fileSystem->realpath($destination);
-    if (is_string($real_path) && is_file($real_path) && filesize($real_path) > 0) {
+    $cached = is_string($real_path) && is_file($real_path) && filesize($real_path) > 0;
+
+    if ($cached && $this->isFresh($real_path)) {
       return $destination;
     }
+
+    // A stale file for the exact same Piwigo derivative can still be served if
+    // refreshing it fails. A different URL intentionally gets a different cache
+    // key so content from another derivative/origin is never reused by accident.
+    $fallback = $cached ? $destination : NULL;
 
     $directory = self::DIRECTORY;
     if (!$this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS)) {
       $this->logger->warning('Unable to create Piwigo thumbnail directory @directory.', ['@directory' => $directory]);
-      return NULL;
+      return $fallback;
     }
 
     try {
       $data = $this->piwigoClient->fetchAsset($url);
       if ($data === '') {
-        return NULL;
+        return $fallback;
       }
+
       $saved = $this->fileSystem->saveData($data, $destination, FileExists::Replace);
-      return is_string($saved) && $saved !== '' ? $saved : NULL;
+      return is_string($saved) && $saved !== '' ? $saved : $fallback;
     }
     catch (\Throwable $e) {
-      $this->logger->warning('Unable to cache Piwigo thumbnail @id: @message', [
+      $this->logger->warning('Unable to refresh Piwigo thumbnail @id: @message', [
         '@id' => $id,
         '@message' => $e->getMessage(),
       ]);
-      return NULL;
+      return $fallback;
     }
+  }
+
+  private function isFresh(string $realPath): bool {
+    $modified = filemtime($realPath);
+    return $modified !== FALSE && $modified >= time() - self::MAX_AGE;
   }
 
   private function guessExtension(string $url): string {
