@@ -10,7 +10,7 @@ if ($manager === false) {
 
 $required = [
   'private const MAX_AGE = 3600;',
-  "substr(hash('sha256', $url), 0, 16)",
+  'substr(hash(\'sha256\', $url), 0, 16)',
   '$id . \'-\' . $fingerprint',
   '$cached && $this->isFresh($real_path)',
   '$fallback = $cached ? $destination : NULL;',
@@ -26,7 +26,7 @@ foreach ($required as $expected) {
   }
 }
 
-if (str_contains($manager, "$id . '.' . $extension")) {
+if (str_contains($manager, '$id . \'.\' . $extension')) {
   fwrite(STDERR, "Thumbnail cache filenames must not be keyed by Piwigo ID alone.\n");
   exit(1);
 }
