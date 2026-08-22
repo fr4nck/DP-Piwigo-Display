@@ -6,6 +6,7 @@ use Composer\Autoload\ClassLoader;
 use Composer\InstalledVersions;
 use Drupal\media\MediaSourceBase;
 use Drupal\media_library\Form\AddFormBase;
+use Drupal\piwigo_display\Controller\ThumbnailController;
 use Drupal\piwigo_display\Form\PiwigoLibraryForm;
 use Drupal\piwigo_display\Form\SettingsForm;
 use Drupal\piwigo_display\Plugin\Field\FieldFormatter\PiwigoImageFormatter;
@@ -44,6 +45,7 @@ $failures = [];
 $classes = [
   PiwigoClient::class,
   ThumbnailManager::class,
+  ThumbnailController::class,
   SettingsForm::class,
   PiwigoLibraryForm::class,
   PiwigoImage::class,
