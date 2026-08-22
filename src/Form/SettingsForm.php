@@ -57,7 +57,7 @@ final class SettingsForm extends ConfigFormBase {
       '#disabled' => $base_url_managed,
       '#description' => $base_url_managed
         ? $this->t('Managed in settings.php with $settings[\'piwigo_display.base_url\'].')
-        : $this->t('Example: https://photos.example.org'),
+        : $this->t('Example: https://photos.example.org/piwigo. Use only the Piwigo base URL, without credentials, query string or fragment.'),
     ];
 
     $form['connection']['api_key'] = [
@@ -158,7 +158,7 @@ final class SettingsForm extends ConfigFormBase {
     $form['security_note'] = [
       '#type' => 'item',
       '#title' => $this->t('Private libraries'),
-      '#markup' => $this->t('The API key authenticates Web API requests. Piwigo installations that additionally protect binary derivative URLs may require a later proxy/session transport mode; this first version already caches Media Library thumbnails server-side when the derivative URL is reachable.'),
+      '#markup' => $this->t('API keys authenticate Web API requests. When binary derivative URLs also require authentication, the optional service-account mode can provide a Piwigo session cookie for server-side thumbnail retrieval. Credentials are never forwarded outside the configured Piwigo origin.'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -169,8 +169,23 @@ final class SettingsForm extends ConfigFormBase {
 
     $url = trim((string) Settings::get('piwigo_display.base_url', $form_state->getValue('base_url')));
     $parts = parse_url($url);
-    if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], TRUE) || empty($parts['host'])) {
-      $form_state->setErrorByName('base_url', $this->t('Enter a valid HTTP or HTTPS Piwigo URL.'));
+    $scheme = is_array($parts) ? strtolower((string) ($parts['scheme'] ?? '')) : '';
+    $has_unsafe_parts = is_array($parts) && (
+      isset($parts['user'])
+      || isset($parts['pass'])
+      || isset($parts['query'])
+      || isset($parts['fragment'])
+    );
+    $has_control_characters = preg_match('/[\x00-\x20\x7f]/', $url) === 1;
+
+    if (
+      !is_array($parts)
+      || !in_array($scheme, ['http', 'https'], TRUE)
+      || empty($parts['host'])
+      || $has_unsafe_parts
+      || $has_control_characters
+    ) {
+      $form_state->setErrorByName('base_url', $this->t('Enter a valid HTTP or HTTPS Piwigo base URL without credentials, query string or fragment.'));
       return;
     }
 
@@ -188,7 +203,7 @@ final class SettingsForm extends ConfigFormBase {
       (string) $form_state->getValue('legacy_password') !== '' ? $form_state->getValue('legacy_password') : ($config->get('legacy_password') ?? ''),
     );
 
-    if (($effective_api_key !== '' || ($effective_legacy_username !== '' && $effective_legacy_password !== '')) && ($parts['scheme'] ?? '') !== 'https') {
+    if (($effective_api_key !== '' || ($effective_legacy_username !== '' && $effective_legacy_password !== '')) && $scheme !== 'https') {
       $form_state->setErrorByName('base_url', $this->t('HTTPS is required when an API key or service-account credentials are configured.'));
     }
 
