@@ -21,14 +21,22 @@ if (!str_contains($form, "Url::fromRoute('piwigo_display.thumbnail'")) {
   exit(1);
 }
 
-if (!str_contains($routing, 'piwigo_display.thumbnail:') || !str_contains($routing, "_permission: 'create media'")) {
-  fwrite(STDERR, "The lazy thumbnail route must exist and require media creation permission.\n");
+if (!str_contains($routing, 'piwigo_display.thumbnail:') || !str_contains($routing, "_permission: 'create media'") || !str_contains($routing, "image_id: '\\d+'")) {
+  fwrite(STDERR, "The lazy thumbnail route must exist, require media creation permission, and constrain image IDs to digits.\n");
   exit(1);
 }
 
-if (!str_contains($controller, 'getLocalThumbnailUri($image)')) {
-  fwrite(STDERR, "ThumbnailController must resolve/cache one requested thumbnail at a time.\n");
-  exit(1);
+foreach ([
+  'getLocalThumbnailUri($image)',
+  'new BinaryFileResponse(',
+  '$response->setPrivate();',
+  '$response->setMaxAge(3600);',
+  'ResponseHeaderBag::DISPOSITION_INLINE',
+] as $expected) {
+  if (!str_contains($controller, $expected)) {
+    fwrite(STDERR, "ThumbnailController regression guard missing: {$expected}\n");
+    exit(1);
+  }
 }
 
 echo "Lazy Media Library thumbnail regression test passed.\n";
