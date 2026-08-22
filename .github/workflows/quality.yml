@@ -68,7 +68,7 @@ jobs:
         run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies --no-plugins --no-scripts
 
       - name: Show resolved Drupal version
-        run: composer show drupal/core
+        run: composer --no-plugins show drupal/core
 
       - name: Run Drupal compatibility smoke test
         run: php tests/compatibility.php
