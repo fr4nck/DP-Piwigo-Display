@@ -5,3 +5,11 @@ piwigo_display.settings:
     _title: 'Piwigo Display'
   requirements:
     _permission: 'administer site configuration'
+
+piwigo_display.thumbnail:
+  path: '/piwigo-display/thumbnail/{image_id}'
+  defaults:
+    _controller: '\Drupal\piwigo_display\Controller\ThumbnailController::thumbnail'
+  requirements:
+    _permission: 'create media'
+    image_id: '\d+'
