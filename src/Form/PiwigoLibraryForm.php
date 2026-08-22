@@ -68,6 +68,7 @@ final class PiwigoLibraryForm extends AddFormBase {
 
     $form['browser'] = [
       '#type' => 'container',
+      '#tree' => TRUE,
       '#attributes' => [
         'class' => ['piwigo-display-browser'],
         'data-piwigo-display-browser' => '1',
