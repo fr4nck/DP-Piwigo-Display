@@ -39,6 +39,10 @@ final class PiwigoLibraryForm extends AddFormBase {
     );
   }
 
+  public function getFormId(): string {
+    return 'piwigo_display_media_library_add_form';
+  }
+
   protected function buildInputElement(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'piwigo_display/media_library';
 
