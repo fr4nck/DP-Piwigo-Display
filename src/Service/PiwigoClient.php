@@ -178,23 +178,22 @@ final class PiwigoClient {
   /**
    * Fetches a Piwigo binary asset for server-side thumbnail caching.
    *
-   * The API key header is sent as a best-effort credential. Standard Piwigo
-   * derivative URLs are generally directly readable. When configured, a legacy
-   * service account also contributes a request-local Piwigo session cookie; a
-   * dedicated proxy mode remains a future hardening option.
+   * Credentials are only sent to the exact configured Piwigo origin. Redirects
+   * are deliberately disabled so neither API keys nor server-side fetches can
+   * escape that origin through an HTTP redirect.
    */
   public function fetchAsset(string $url): string {
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
       throw new \RuntimeException('Invalid Piwigo asset URL.');
     }
 
-    $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-    $baseHost = strtolower((string) parse_url($this->getBaseUrl(), PHP_URL_HOST));
-    $assetHost = strtolower((string) parse_url($url, PHP_URL_HOST));
-    if (!in_array($scheme, ['http', 'https'], TRUE) || $baseHost === '' || $assetHost === '' || !hash_equals($baseHost, $assetHost)) {
-      throw new \RuntimeException('Piwigo assets must use HTTP(S) on the configured Piwigo host.');
+    $baseUrl = $this->getBaseUrl();
+    $baseOrigin = $this->getOrigin($baseUrl);
+    $assetOrigin = $this->getOrigin($url);
+    if ($baseOrigin === NULL || $assetOrigin === NULL || $baseOrigin !== $assetOrigin) {
+      throw new \RuntimeException('Piwigo assets must use the configured Piwigo origin.');
     }
-    if (($this->getApiKey() !== '' || $this->hasLegacyCredentials()) && $scheme !== 'https') {
+    if (($this->getApiKey() !== '' || $this->hasLegacyCredentials()) && $assetOrigin['scheme'] !== 'https') {
       throw new \RuntimeException('Authenticated Piwigo assets require HTTPS.');
     }
 
@@ -228,7 +227,7 @@ final class PiwigoClient {
       'headers' => $headers,
       'timeout' => $this->getTimeout(),
       'connect_timeout' => min(5, $this->getTimeout()),
-      'allow_redirects' => ($sendApiKey || $cookies instanceof CookieJar) ? FALSE : ['max' => 3, 'strict' => TRUE],
+      'allow_redirects' => FALSE,
       'http_errors' => FALSE,
     ];
     if ($cookies instanceof CookieJar) {
@@ -300,7 +299,7 @@ final class PiwigoClient {
       'form_params' => ['method' => $method] + $parameters,
       'timeout' => $this->getTimeout(),
       'connect_timeout' => min(5, $this->getTimeout()),
-      'allow_redirects' => ($apiKey !== '' || $this->legacyCookieJar instanceof CookieJar) ? FALSE : ['max' => 3, 'strict' => TRUE],
+      'allow_redirects' => FALSE,
       'http_errors' => FALSE,
     ];
     if ($apiKey === '' && $this->legacyCookieJar instanceof CookieJar) {
@@ -445,15 +444,79 @@ final class PiwigoClient {
   }
 
   private function getBaseUrl(): string {
-    $value = trim((string) $this->getSetting('base_url', ''));
-    if ($value === '') {
+    return $this->sanitizeBaseUrl(trim((string) $this->getSetting('base_url', '')));
+  }
+
+  /**
+   * Returns a canonical base URL safe for endpoint concatenation.
+   */
+  private function sanitizeBaseUrl(string $value): string {
+    if ($value === '' || preg_match('/[\x00-\x20\x7f]/', $value)) {
       return '';
     }
+
     $parts = parse_url($value);
-    if (!is_array($parts) || !in_array($parts['scheme'] ?? '', ['http', 'https'], TRUE) || empty($parts['host'])) {
+    if (!is_array($parts)) {
       return '';
     }
-    return rtrim($value, '/');
+
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    if (!in_array($scheme, ['http', 'https'], TRUE) || $host === '') {
+      return '';
+    }
+    if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+      return '';
+    }
+
+    $port = isset($parts['port']) ? (int) $parts['port'] : NULL;
+    if ($port !== NULL && ($port < 1 || $port > 65535)) {
+      return '';
+    }
+
+    // parse_url() may return an unbracketed IPv6 host on some PHP versions.
+    if (str_contains($host, ':') && !str_starts_with($host, '[')) {
+      $host = '[' . $host . ']';
+    }
+
+    $authority = $host . ($port !== NULL ? ':' . $port : '');
+    $path = (string) ($parts['path'] ?? '');
+    if ($path !== '' && !str_starts_with($path, '/')) {
+      $path = '/' . $path;
+    }
+
+    return rtrim($scheme . '://' . $authority . $path, '/');
+  }
+
+  /**
+   * Extracts a normalized HTTP(S) origin for strict credential boundaries.
+   *
+   * @return array{scheme: string, host: string, port: int}|null
+   */
+  private function getOrigin(string $url): ?array {
+    $parts = parse_url($url);
+    if (!is_array($parts) || isset($parts['user']) || isset($parts['pass'])) {
+      return NULL;
+    }
+
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    if (!in_array($scheme, ['http', 'https'], TRUE) || $host === '') {
+      return NULL;
+    }
+
+    $port = isset($parts['port'])
+      ? (int) $parts['port']
+      : ($scheme === 'https' ? 443 : 80);
+    if ($port < 1 || $port > 65535) {
+      return NULL;
+    }
+
+    return [
+      'scheme' => $scheme,
+      'host' => $host,
+      'port' => $port,
+    ];
   }
 
   private function getApiKey(): string {
@@ -478,7 +541,7 @@ final class PiwigoClient {
       return 'api:' . hash('sha256', $apiKey);
     }
     if ($this->hasLegacyCredentials()) {
-      return 'legacy:' . hash('sha256', $this->getLegacyUsername());
+      return 'legacy:' . hash('sha256', $this->getLegacyUsername() . "\0" . $this->getLegacyPassword());
     }
     return 'anonymous';
   }
