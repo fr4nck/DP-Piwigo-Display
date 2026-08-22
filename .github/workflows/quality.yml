@@ -45,6 +45,9 @@ jobs:
       - name: Run lazy thumbnail regression test
         run: php tests/lazy_thumbnails.php
 
+      - name: Run thumbnail cache regression test
+        run: php tests/thumbnail_cache.php
+
   drupal-compatibility:
     runs-on: ubuntu-latest
     strategy:
