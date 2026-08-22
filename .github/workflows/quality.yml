@@ -65,7 +65,7 @@ jobs:
         run: composer require --no-update "drupal/core:${{ matrix.drupal }}"
 
       - name: Install Drupal core
-        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies --no-plugins --no-scripts
 
       - name: Show resolved Drupal version
         run: composer show drupal/core
