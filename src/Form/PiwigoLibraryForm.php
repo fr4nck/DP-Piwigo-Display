@@ -7,11 +7,11 @@ namespace Drupal\piwigo_display\Form;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\media_library\Form\AddFormBase;
 use Drupal\media_library\MediaLibraryUiBuilder;
 use Drupal\media_library\OpenerResolverInterface;
 use Drupal\piwigo_display\Service\PiwigoClient;
-use Drupal\piwigo_display\Service\ThumbnailManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -24,7 +24,6 @@ final class PiwigoLibraryForm extends AddFormBase {
     MediaLibraryUiBuilder $library_ui_builder,
     OpenerResolverInterface $opener_resolver,
     private readonly PiwigoClient $piwigoClient,
-    private readonly ThumbnailManager $thumbnailManager,
   ) {
     parent::__construct($entity_type_manager, $library_ui_builder, $opener_resolver);
   }
@@ -35,7 +34,6 @@ final class PiwigoLibraryForm extends AddFormBase {
       $container->get('media_library.ui_builder'),
       $container->get('media_library.opener_resolver'),
       $container->get('piwigo_display.client'),
-      $container->get('piwigo_display.thumbnail_manager'),
     );
   }
 
@@ -327,7 +325,7 @@ final class PiwigoLibraryForm extends AddFormBase {
       $width = (int) ($image['width'] ?? 0);
       $height = (int) ($image['height'] ?? 0);
       $dimensions = $width > 0 && $height > 0 ? $width . ' × ' . $height : (string) $this->t('Dimensions unavailable');
-      $thumbnail = $this->thumbnailManager->getLocalThumbnailUri($image) ?? (string) ($image['thumbnail_url'] ?? '');
+      $thumbnail = Url::fromRoute('piwigo_display.thumbnail', ['image_id' => $id])->toString();
 
       $cards[$key] = [
         '#type' => 'container',
@@ -348,24 +346,17 @@ final class PiwigoLibraryForm extends AddFormBase {
         ],
       ];
 
-      if ($thumbnail !== '') {
-        $cards[$key]['preview'] = [
-          '#theme' => 'image',
-          '#uri' => $thumbnail,
-          '#alt' => $name,
-          '#attributes' => [
-            'class' => ['piwigo-display-card__image'],
-            'loading' => 'lazy',
-          ],
-          '#prefix' => '<div class="piwigo-display-card__preview">',
-          '#suffix' => '</div>',
-        ];
-      }
-      else {
-        $cards[$key]['preview'] = [
-          '#markup' => '<div class="piwigo-display-card__preview piwigo-display-card__preview--empty" aria-hidden="true"></div>',
-        ];
-      }
+      $cards[$key]['preview'] = [
+        '#theme' => 'image',
+        '#uri' => $thumbnail,
+        '#alt' => $name,
+        '#attributes' => [
+          'class' => ['piwigo-display-card__image'],
+          'loading' => 'lazy',
+        ],
+        '#prefix' => '<div class="piwigo-display-card__preview">',
+        '#suffix' => '</div>',
+      ];
 
       $cards[$key]['meta'] = [
         '#type' => 'container',
