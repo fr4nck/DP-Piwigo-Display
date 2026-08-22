@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\piwigo_display\Plugin\Field\FieldFormatter;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Field\Attribute\FieldFormatter;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -11,6 +12,7 @@ use Drupal\Core\Field\FormatterBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Core\Url;
 use Drupal\piwigo_display\Service\PiwigoClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -34,6 +36,7 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
     $view_mode,
     array $third_party_settings,
     private readonly PiwigoClient $piwigoClient,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {
     parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings);
   }
@@ -48,6 +51,7 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
       $configuration['view_mode'],
       $configuration['third_party_settings'],
       $container->get('piwigo_display.client'),
+      $container->get('config.factory'),
     );
   }
 
@@ -99,6 +103,8 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
 
   public function viewElements(FieldItemListInterface $items, $langcode): array {
     $elements = [];
+    $cacheTtl = max(0, (int) $this->configFactory->get('piwigo_display.settings')->get('cache_ttl'));
+
     foreach ($items as $delta => $item) {
       $id = (int) $item->value;
       if ($id <= 0) {
@@ -127,18 +133,22 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
           $elements[$delta] = [
             '#type' => 'link',
             '#title' => $image_element,
-            '#url' => \Drupal\Core\Url::fromUri($page_url),
+            '#url' => Url::fromUri($page_url),
           ];
         }
         else {
           $elements[$delta] = $image_element;
         }
 
-        $elements[$delta]['#cache']['max-age'] = max(0, (int) \Drupal::config('piwigo_display.settings')->get('cache_ttl'));
+        $elements[$delta]['#cache'] = [
+          'max-age' => $cacheTtl,
+          'tags' => ['config:piwigo_display.settings'],
+        ];
       }
-      catch (\Throwable $e) {
+      catch (\Throwable) {
         $elements[$delta] = [
           '#markup' => '<span class="piwigo-display-error">' . $this->t('Piwigo image @id is temporarily unavailable.', ['@id' => $id]) . '</span>',
+          '#cache' => ['max-age' => 0],
         ];
       }
     }
