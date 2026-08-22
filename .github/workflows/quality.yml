@@ -32,6 +32,43 @@ jobs:
       - name: Lint PHP
         run: find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: Validate JavaScript syntax
+        run: node --check js/piwigo-display-library.js
+
       - name: Validate YAML syntax
         run: |
           ruby -e 'require "yaml"; Dir.glob("**/*.{yml,yaml}").sort.each { |f| YAML.load_file(f); puts "OK #{f}" }'
+
+  drupal-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - drupal: '^10.3 <11'
+            php: '8.1'
+          - drupal: '^11'
+            php: '8.3'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Select Drupal core branch
+        run: composer require --no-update "drupal/core:${{ matrix.drupal }}"
+
+      - name: Install Drupal core
+        run: composer update --prefer-dist --no-interaction --no-progress --with-all-dependencies
+
+      - name: Show resolved Drupal version
+        run: composer show drupal/core
+
+      - name: Run Drupal compatibility smoke test
+        run: php tests/compatibility.php
