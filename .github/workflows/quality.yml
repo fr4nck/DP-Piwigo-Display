@@ -72,3 +72,6 @@ jobs:
 
       - name: Run Drupal compatibility smoke test
         run: php tests/compatibility.php
+
+      - name: Run Piwigo origin security tests
+        run: php tests/origin_security.php
