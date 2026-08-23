@@ -37,6 +37,13 @@ final class PiwigoClient {
   }
 
   /**
+   * Returns TRUE when requests use an API key or legacy service account.
+   */
+  public function usesAuthentication(): bool {
+    return $this->getApiKey() !== '' || $this->hasLegacyCredentials();
+  }
+
+  /**
    * Tests the configured endpoint and returns basic server information.
    *
    * @return array<string, mixed>

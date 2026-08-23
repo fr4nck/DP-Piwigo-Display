@@ -76,7 +76,7 @@ final class PiwigoImage extends MediaSourceBase {
   public function getMetadataAttributes(): array {
     return [
       'default_name' => $this->t('Image name'),
-      'thumbnail_uri' => $this->t('Local thumbnail'),
+      'thumbnail_uri' => $this->t('Media thumbnail'),
       'width' => $this->t('Width'),
       'height' => $this->t('Height'),
       'author' => $this->t('Author'),
@@ -90,6 +90,14 @@ final class PiwigoImage extends MediaSourceBase {
     $id = (int) $this->getSourceFieldValue($media);
     if ($id <= 0) {
       return parent::getMetadata($media, $attribute_name);
+    }
+
+    // Drupal persists the Media thumbnail URI as a File entity. For private
+    // Piwigo connections, never give core a URI that points to sensitive bytes
+    // in a publicly addressable stream wrapper. The add browser still displays
+    // the real image through our permission-protected thumbnail route.
+    if ($attribute_name === 'thumbnail_uri' && $this->piwigoClient->usesAuthentication()) {
+      return parent::getMetadata($media, 'thumbnail_uri');
     }
 
     try {
