@@ -33,9 +33,11 @@ La valeur canonique enregistrée dans Drupal est l'identifiant de l'image Piwigo
 6. Créer un type de média Drupal utilisant la source **Piwigo image**.
 7. Ouvrir la Media Library : la source propose recherche, albums, prévisualisation et sélection multiple.
 
-## Secrets en production
+## Secrets
 
-À privilégier dans `settings.php` :
+Les identifiants saisis depuis l'administration de Piwigo Display sont stockés dans l'état local de Drupal. Ils ne figurent donc pas dans les exports de configuration. Cet état local n'est toutefois pas chiffré : les sauvegardes de la base de données peuvent contenir ces secrets et doivent être protégées en conséquence.
+
+Pour des identifiants de production pilotés par le déploiement, `settings.php` reste la méthode recommandée :
 
 ```php
 $settings['piwigo_display.base_url'] = 'https://photos.example.org';
@@ -44,7 +46,9 @@ $settings['piwigo_display.legacy_username'] = 'drupal-service';
 $settings['piwigo_display.legacy_password'] = '…';
 ```
 
-Les connexions authentifiées exigent HTTPS.
+Les valeurs définies dans `settings.php` sont prioritaires. Ne jamais versionner une clé API ou un mot de passe. Les connexions authentifiées exigent HTTPS.
+
+Les installations de développement existantes qui avaient encore `api_key` ou `legacy_password` dans la configuration sont migrées automatiquement vers l'état local par la mise à jour du module, puis ces anciennes valeurs sont supprimées de la configuration exportable.
 
 ## Limite connue de cette première version
 
