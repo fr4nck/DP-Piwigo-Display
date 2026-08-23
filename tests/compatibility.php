@@ -6,6 +6,7 @@ use Composer\Autoload\ClassLoader;
 use Composer\InstalledVersions;
 use Drupal\media\MediaSourceBase;
 use Drupal\media_library\Form\AddFormBase;
+use Drupal\media_library\MediaLibraryState;
 use Drupal\piwigo_display\Controller\ThumbnailController;
 use Drupal\piwigo_display\Form\PiwigoLibraryForm;
 use Drupal\piwigo_display\Form\SettingsForm;
@@ -50,6 +51,7 @@ $classes = [
   PiwigoLibraryForm::class,
   PiwigoImage::class,
   PiwigoImageFormatter::class,
+  MediaLibraryState::class,
 ];
 
 foreach ($classes as $class) {
@@ -89,6 +91,9 @@ foreach ($inheritance as $class => $parent) {
 $requiredCoreMethods = [
   [AddFormBase::class, 'processInputValues'],
   [AddFormBase::class, 'updateFormCallback'],
+  [AddFormBase::class, 'getMediaLibraryState'],
+  [MediaLibraryState::class, 'hasSlotsAvailable'],
+  [MediaLibraryState::class, 'getAvailableSlots'],
   [MediaSourceBase::class, 'getSourceFieldDefinition'],
 ];
 foreach ($requiredCoreMethods as [$class, $method]) {

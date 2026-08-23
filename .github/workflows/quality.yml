@@ -43,6 +43,9 @@ jobs:
       - name: Run Media Library form-tree regression test
         run: php tests/form_tree.php
 
+      - name: Run Media Library slot-limit regression test
+        run: php tests/media_library_slots.php
+
       - name: Run lazy thumbnail regression test
         run: php tests/lazy_thumbnails.php
 
