@@ -12,7 +12,10 @@ Initial Drupal scaffold:
 - sticky functional filter and selection layers with restrained blur where supported;
 - reduced-motion support and responsive container queries;
 - Piwigo 16+ API-key support;
-- local thumbnail cache;
+- local thumbnail cache for public/anonymous Piwigo libraries;
+- authenticated Media Library previews streamed without persistent public files;
+- migration purging legacy public thumbnail files when authentication may be in use;
+- local non-exportable credential storage with migration from legacy configuration;
 - Piwigo derivative field formatter;
 - administration form and configuration schema;
 - Drupal 10.3/11 compatibility target.
