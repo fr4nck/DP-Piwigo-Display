@@ -267,6 +267,12 @@ final class SettingsForm extends ConfigFormBase {
       if ($api_key !== '') {
         $this->state->set(self::API_KEY_STATE, $api_key);
       }
+      elseif ($this->state->get(self::API_KEY_STATE, NULL) === NULL) {
+        $legacy_api_key = trim((string) ($config->get('api_key') ?? ''));
+        if ($legacy_api_key !== '') {
+          $this->state->set(self::API_KEY_STATE, $legacy_api_key);
+        }
+      }
     }
 
     if (Settings::get('piwigo_display.legacy_username', NULL) === NULL) {
@@ -280,6 +286,12 @@ final class SettingsForm extends ConfigFormBase {
       $legacy_password = (string) $form_state->getValue('legacy_password');
       if ($legacy_password !== '') {
         $this->state->set(self::LEGACY_PASSWORD_STATE, $legacy_password);
+      }
+      elseif ($this->state->get(self::LEGACY_PASSWORD_STATE, NULL) === NULL) {
+        $legacy_config_password = (string) ($config->get('legacy_password') ?? '');
+        if ($legacy_config_password !== '') {
+          $this->state->set(self::LEGACY_PASSWORD_STATE, $legacy_config_password);
+        }
       }
     }
 
