@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\State\StateInterface;
 use Drupal\piwigo_display\Service\PiwigoClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -16,8 +17,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 final class SettingsForm extends ConfigFormBase {
 
+  private const API_KEY_STATE = 'piwigo_display.api_key';
+
+  private const LEGACY_PASSWORD_STATE = 'piwigo_display.legacy_password';
+
   public function __construct(
     ConfigFactoryInterface $config_factory,
+    private readonly StateInterface $state,
     private readonly PiwigoClient $piwigoClient,
   ) {
     parent::__construct($config_factory);
@@ -26,6 +32,7 @@ final class SettingsForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('config.factory'),
+      $container->get('state'),
       $container->get('piwigo_display.client'),
     );
   }
@@ -42,6 +49,7 @@ final class SettingsForm extends ConfigFormBase {
     $config = $this->config('piwigo_display.settings');
     $api_key_managed = Settings::get('piwigo_display.api_key', NULL) !== NULL;
     $base_url_managed = Settings::get('piwigo_display.base_url', NULL) !== NULL;
+    $stored_api_key = $this->getStoredSecret(self::API_KEY_STATE, 'api_key');
 
     $form['connection'] = [
       '#type' => 'details',
@@ -68,11 +76,21 @@ final class SettingsForm extends ConfigFormBase {
       '#attributes' => ['autocomplete' => 'new-password'],
       '#description' => $api_key_managed
         ? $this->t('Managed in settings.php with $settings[\'piwigo_display.api_key\']. The secret is never displayed here.')
-        : $this->t('Piwigo 16+: personal API key. Leave blank to keep the currently stored key. For production, settings.php is recommended.'),
+        : $this->t('Piwigo 16+: personal API key. Leave blank to keep the currently stored key. Secrets entered here are stored in local Drupal state and are not included in configuration exports.'),
     ];
+    if ($stored_api_key !== '') {
+      $form['connection']['clear_api_key'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Remove the locally stored API key'),
+        '#description' => $api_key_managed
+          ? $this->t('The settings.php API key remains active; this only removes the local fallback secret.')
+          : $this->t('Removes the saved API key when this form is submitted.'),
+      ];
+    }
 
     $legacy_username_managed = Settings::get('piwigo_display.legacy_username', NULL) !== NULL;
     $legacy_password_managed = Settings::get('piwigo_display.legacy_password', NULL) !== NULL;
+    $stored_legacy_password = $this->getStoredSecret(self::LEGACY_PASSWORD_STATE, 'legacy_password');
 
     $form['connection']['legacy'] = [
       '#type' => 'details',
@@ -95,8 +113,17 @@ final class SettingsForm extends ConfigFormBase {
       '#attributes' => ['autocomplete' => 'new-password'],
       '#description' => $legacy_password_managed
         ? $this->t('Managed in settings.php. The secret is never displayed here.')
-        : $this->t('Leave blank to keep the stored password. Prefer settings.php for production secrets.'),
+        : $this->t('Leave blank to keep the stored password. Secrets entered here are stored in local Drupal state and are not included in configuration exports.'),
     ];
+    if ($stored_legacy_password !== '') {
+      $form['connection']['legacy']['clear_legacy_password'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Remove the locally stored Piwigo password'),
+        '#description' => $legacy_password_managed
+          ? $this->t('The settings.php password remains active; this only removes the local fallback secret.')
+          : $this->t('Removes the saved service-account password when this form is submitted.'),
+      ];
+    }
 
     $form['connection']['request_timeout'] = [
       '#type' => 'number',
@@ -158,7 +185,7 @@ final class SettingsForm extends ConfigFormBase {
     $form['security_note'] = [
       '#type' => 'item',
       '#title' => $this->t('Private libraries'),
-      '#markup' => $this->t('API keys authenticate Web API requests. When binary derivative URLs also require authentication, the optional service-account mode can provide a Piwigo session cookie for server-side thumbnail retrieval. Credentials are never forwarded outside the configured Piwigo origin.'),
+      '#markup' => $this->t('API keys authenticate Web API requests. When binary derivative URLs also require authentication, the optional service-account mode can provide a Piwigo session cookie for server-side thumbnail retrieval. Credentials are never forwarded outside the configured Piwigo origin. Secrets saved through this form use Drupal local state, which keeps them out of configuration exports but does not encrypt them in the database; settings.php remains recommended for deployment-managed secrets.'),
     ];
 
     return parent::buildForm($form, $form_state);
@@ -189,19 +216,32 @@ final class SettingsForm extends ConfigFormBase {
       return;
     }
 
-    $config = $this->config('piwigo_display.settings');
-    $effective_api_key = trim((string) Settings::get(
-      'piwigo_display.api_key',
-      trim((string) $form_state->getValue('api_key')) !== '' ? $form_state->getValue('api_key') : ($config->get('api_key') ?? ''),
-    ));
+    $new_api_key = trim((string) $form_state->getValue('api_key'));
+    $clear_api_key = (bool) $form_state->getValue('clear_api_key');
+    if ($new_api_key !== '' && $clear_api_key) {
+      $form_state->setErrorByName('api_key', $this->t('Enter a new API key or remove the stored key, not both.'));
+    }
+
+    $new_legacy_password = (string) $form_state->getValue('legacy_password');
+    $clear_legacy_password = (bool) $form_state->getValue('clear_legacy_password');
+    if ($new_legacy_password !== '' && $clear_legacy_password) {
+      $form_state->setErrorByName('legacy_password', $this->t('Enter a new password or remove the stored password, not both.'));
+    }
+
+    $settings_api_key = Settings::get('piwigo_display.api_key', NULL);
+    $effective_api_key = $settings_api_key !== NULL
+      ? trim((string) $settings_api_key)
+      : ($clear_api_key ? '' : ($new_api_key !== '' ? $new_api_key : $this->getStoredSecret(self::API_KEY_STATE, 'api_key')));
+
     $effective_legacy_username = trim((string) Settings::get(
       'piwigo_display.legacy_username',
-      $form_state->getValue('legacy_username') ?? $config->get('legacy_username') ?? '',
+      $form_state->getValue('legacy_username') ?? $this->config('piwigo_display.settings')->get('legacy_username') ?? '',
     ));
-    $effective_legacy_password = (string) Settings::get(
-      'piwigo_display.legacy_password',
-      (string) $form_state->getValue('legacy_password') !== '' ? $form_state->getValue('legacy_password') : ($config->get('legacy_password') ?? ''),
-    );
+
+    $settings_legacy_password = Settings::get('piwigo_display.legacy_password', NULL);
+    $effective_legacy_password = $settings_legacy_password !== NULL
+      ? (string) $settings_legacy_password
+      : ($clear_legacy_password ? '' : ($new_legacy_password !== '' ? $new_legacy_password : $this->getStoredSecret(self::LEGACY_PASSWORD_STATE, 'legacy_password')));
 
     if (($effective_api_key !== '' || ($effective_legacy_username !== '' && $effective_legacy_password !== '')) && $scheme !== 'https') {
       $form_state->setErrorByName('base_url', $this->t('HTTPS is required when an API key or service-account credentials are configured.'));
@@ -219,24 +259,35 @@ final class SettingsForm extends ConfigFormBase {
       $config->set('base_url', rtrim(trim((string) $form_state->getValue('base_url')), '/'));
     }
 
-    if (Settings::get('piwigo_display.api_key', NULL) === NULL) {
+    if ((bool) $form_state->getValue('clear_api_key')) {
+      $this->state->delete(self::API_KEY_STATE);
+    }
+    elseif (Settings::get('piwigo_display.api_key', NULL) === NULL) {
       $api_key = trim((string) $form_state->getValue('api_key'));
       if ($api_key !== '') {
-        $config->set('api_key', $api_key);
+        $this->state->set(self::API_KEY_STATE, $api_key);
       }
     }
 
     if (Settings::get('piwigo_display.legacy_username', NULL) === NULL) {
       $config->set('legacy_username', trim((string) $form_state->getValue('legacy_username')));
     }
-    if (Settings::get('piwigo_display.legacy_password', NULL) === NULL) {
+
+    if ((bool) $form_state->getValue('clear_legacy_password')) {
+      $this->state->delete(self::LEGACY_PASSWORD_STATE);
+    }
+    elseif (Settings::get('piwigo_display.legacy_password', NULL) === NULL) {
       $legacy_password = (string) $form_state->getValue('legacy_password');
       if ($legacy_password !== '') {
-        $config->set('legacy_password', $legacy_password);
+        $this->state->set(self::LEGACY_PASSWORD_STATE, $legacy_password);
       }
     }
 
+    // Remove legacy secret keys from exportable configuration even if an
+    // administrator saves the form before running the database update hook.
     $config
+      ->clear('api_key')
+      ->clear('legacy_password')
       ->set('request_timeout', (int) $form_state->getValue('request_timeout'))
       ->set('cache_ttl', (int) $form_state->getValue('cache_ttl'))
       ->set('default_derivative', (string) $form_state->getValue('default_derivative'))
@@ -263,6 +314,18 @@ final class SettingsForm extends ConfigFormBase {
     }
 
     $form_state->setRebuild();
+  }
+
+  /**
+   * Reads a locally stored secret, with a one-release fallback for old config.
+   */
+  private function getStoredSecret(string $state_key, string $legacy_config_key): string {
+    $stored = $this->state->get($state_key, NULL);
+    if ($stored !== NULL) {
+      return (string) $stored;
+    }
+
+    return (string) ($this->config('piwigo_display.settings')->get($legacy_config_key) ?? '');
   }
 
 }
