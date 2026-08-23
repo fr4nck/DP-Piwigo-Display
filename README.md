@@ -20,7 +20,8 @@ Implemented:
 - image metadata with `pwg.images.getInfo`;
 - Drupal Media source plugin storing the Piwigo image ID in a string source field;
 - Media Library add form with search, album selector, previews and multi-selection;
-- server-side thumbnail cache under `public://piwigo_display/thumbnails`;
+- server-side thumbnail cache under `public://piwigo_display/thumbnails` for anonymous/public Piwigo libraries only;
+- authenticated Media Library previews streamed in memory through the protected Drupal route, without persisting their bytes in `public://`;
 - field formatter rendering a chosen Piwigo derivative;
 - connection/settings administration;
 - non-exportable local secret storage for credentials entered through the administration form.
@@ -29,7 +30,7 @@ Not implemented yet:
 
 - non-destructive crop/focal-point workflow;
 - optional local cache/import of display derivatives;
-- dedicated proxy transport for Piwigo installations where direct derivative URLs and the existing authenticated session transport are insufficient;
+- dedicated access-aware proxy transport for frontend derivatives from protected Piwigo libraries;
 - pagination beyond the first result page in the Media Library UI;
 - advanced tag/date filters;
 - automated Drupal.org packaging/tests.
@@ -68,7 +69,9 @@ Existing development installations that stored `api_key` or `legacy_password` in
 
 Piwigo 16 introduced personal API keys. Starting with Piwigo 16.1, keys are sent in the `X-PIWIGO-API` header.
 
-The key authenticates Web API calls. Most ordinary Piwigo derivative URLs are directly readable, but administrators can configure stricter URL protection. This module therefore caches Media Library thumbnails server-side and sends the API-key header as a best effort when fetching them. An optional legacy service account can also establish a Piwigo session cookie for protected binary assets. A dedicated proxy mode is still planned for deployments where neither direct derivative URLs nor the session transport is sufficient.
+The key authenticates Web API calls. Some installations also protect binary derivative URLs. Media Library previews therefore use two different paths: anonymous/public libraries may use the local public thumbnail cache, while authenticated libraries are fetched server-side and streamed in memory through the permission-protected Drupal thumbnail route. Authenticated preview bytes are not stored in `public://`; update `10002` also purges thumbnails generated there by earlier development builds.
+
+The normal frontend formatter still renders Piwigo derivative URLs directly. A dedicated access-aware proxy remains planned for deployments where those derivative URLs themselves must stay protected or where Drupal page access must also govern direct image access.
 
 ## Rendering model
 
