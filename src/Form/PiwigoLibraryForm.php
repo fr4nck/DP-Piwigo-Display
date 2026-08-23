@@ -30,7 +30,7 @@ final class PiwigoLibraryForm extends AddFormBase {
 
   public static function create(ContainerInterface $container): static {
     return new static(
-      $container->get('entity_type.manager'),
+      $configuration = $container->get('entity_type.manager'),
       $container->get('media_library.ui_builder'),
       $container->get('media_library.opener_resolver'),
       $container->get('piwigo_display.client'),
@@ -43,6 +43,12 @@ final class PiwigoLibraryForm extends AddFormBase {
 
   protected function buildInputElement(array $form, FormStateInterface $form_state): array {
     $form['#attached']['library'][] = 'piwigo_display/media_library';
+
+    $state = $this->getMediaLibraryState($form_state);
+    if (!$state->hasSlotsAvailable()) {
+      return $form;
+    }
+    $available_slots = $state->getAvailableSlots();
 
     if (!$this->piwigoClient->isConfigured()) {
       $form['not_configured'] = [
@@ -70,6 +76,7 @@ final class PiwigoLibraryForm extends AddFormBase {
       '#attributes' => [
         'class' => ['piwigo-display-browser'],
         'data-piwigo-display-browser' => '1',
+        'data-piwigo-display-selection-limit' => (string) $available_slots,
       ],
     ];
 
@@ -89,6 +96,18 @@ final class PiwigoLibraryForm extends AddFormBase {
       '#value' => $this->t('Browse your Piwigo albums or search the full library, then select the images to add to Drupal.'),
       '#attributes' => ['class' => ['piwigo-display-browser__description']],
     ];
+    if ($available_slots > 0) {
+      $form['browser']['header']['selection_limit'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'p',
+        '#value' => $this->formatPlural(
+          $available_slots,
+          'You can add 1 more image.',
+          'You can add up to @count more images.',
+        ),
+        '#attributes' => ['class' => ['piwigo-display-browser__selection-limit']],
+      ];
+    }
 
     $form['browser']['filters'] = [
       '#type' => 'container',
@@ -254,13 +273,30 @@ final class PiwigoLibraryForm extends AddFormBase {
       }
     }
 
+    $selected = array_values(array_unique($selected));
     if (!$selected) {
       $this->messenger()->addWarning($this->t('Select at least one Piwigo image.'));
       $form_state->setRebuild();
       return;
     }
 
-    $this->processInputValues(array_values(array_unique($selected)), $form, $form_state);
+    $available_slots = $this->getMediaLibraryState($form_state)->getAvailableSlots();
+    if ($available_slots === 0) {
+      $this->messenger()->addWarning($this->t('No more media items can be added to this field.'));
+      $form_state->setRebuild();
+      return;
+    }
+    if ($available_slots > 0 && count($selected) > $available_slots) {
+      $this->messenger()->addWarning($this->formatPlural(
+        $available_slots,
+        'You can add only 1 more image to this field.',
+        'You can add at most @count more images to this field.',
+      ));
+      $form_state->setRebuild();
+      return;
+    }
+
+    $this->processInputValues($selected, $form, $form_state);
   }
 
   /**
