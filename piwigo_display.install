@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * @file
- * Install and update hooks for Piwigo Display.
+ * Install, update and uninstall hooks for Piwigo Display.
  */
 
 /**
@@ -31,4 +31,20 @@ function piwigo_display_update_10001(): string {
     ->save(TRUE);
 
   return 'Moved Piwigo credentials from exported configuration to local Drupal state.';
+}
+
+/**
+ * Removes local credentials and generated cache files on uninstall.
+ */
+function piwigo_display_uninstall(): void {
+  $state = \Drupal::state();
+  $state->delete('piwigo_display.api_key');
+  $state->delete('piwigo_display.legacy_password');
+
+  $file_system = \Drupal::service('file_system');
+  $directory = 'public://piwigo_display';
+  $real_path = $file_system->realpath($directory);
+  if (is_string($real_path) && is_dir($real_path)) {
+    $file_system->deleteRecursive($directory);
+  }
 }
