@@ -22,13 +22,14 @@ Implemented:
 - Media Library add form with search, album selector, previews and multi-selection;
 - server-side thumbnail cache under `public://piwigo_display/thumbnails`;
 - field formatter rendering a chosen Piwigo derivative;
-- connection/settings administration.
+- connection/settings administration;
+- non-exportable local secret storage for credentials entered through the administration form.
 
 Not implemented yet:
 
 - non-destructive crop/focal-point workflow;
 - optional local cache/import of display derivatives;
-- authenticated session/proxy transport for Piwigo installations that protect the binary derivative URLs themselves;
+- dedicated proxy transport for Piwigo installations where direct derivative URLs and the existing authenticated session transport are insufficient;
 - pagination beyond the first result page in the Media Library UI;
 - advanced tag/date filters;
 - automated Drupal.org packaging/tests.
@@ -44,9 +45,11 @@ Not implemented yet:
 7. In `Structure > Media types`, create a media type and select **Piwigo image** as its source. Drupal will create the string source field automatically.
 8. Add this media type to the Media Library and use the library to search/browse Piwigo.
 
-## Production secrets
+## Secrets
 
-Instead of storing credentials in Drupal configuration, put them in `settings.php`:
+Credentials entered through the Piwigo Display administration form are stored in Drupal local state. They are therefore not included in Drupal configuration exports. Local state is not encrypted, however: database backups can still contain these values and must be protected.
+
+For deployment-managed production credentials, `settings.php` remains the recommended option:
 
 ```php
 $settings['piwigo_display.base_url'] = 'https://photos.example.org';
@@ -57,7 +60,9 @@ $settings['piwigo_display.legacy_username'] = 'drupal-service';
 $settings['piwigo_display.legacy_password'] = '…';
 ```
 
-Values from `settings.php` override exported configuration. Never commit the API key or password. Authenticated connections require HTTPS.
+Values from `settings.php` override locally stored credentials and exported configuration. Never commit the API key or password. Authenticated connections require HTTPS.
+
+Existing development installations that stored `api_key` or `legacy_password` in configuration are migrated automatically to local state by the module update hook and the obsolete config values are removed.
 
 ## Piwigo authentication note
 
