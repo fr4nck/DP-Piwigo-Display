@@ -32,6 +32,8 @@ $required = [
   [$form, "\$this->state->delete(self::API_KEY_STATE)"],
   [$form, "\$this->state->set(self::LEGACY_PASSWORD_STATE"],
   [$form, "\$this->state->delete(self::LEGACY_PASSWORD_STATE)"],
+  [$form, "\$legacy_api_key = trim((string) (\$config->get('api_key') ?? ''))"],
+  [$form, "\$legacy_config_password = (string) (\$config->get('legacy_password') ?? '')"],
   [$form, "->clear('api_key')"],
   [$form, "->clear('legacy_password')"],
   [$install, 'function piwigo_display_update_10001()'],
@@ -39,6 +41,10 @@ $required = [
   [$install, "\$state->set('piwigo_display.legacy_password'"],
   [$install, "->clear('api_key')"],
   [$install, "->clear('legacy_password')"],
+  [$install, 'function piwigo_display_uninstall(): void'],
+  [$install, "\$state->delete('piwigo_display.api_key')"],
+  [$install, "\$state->delete('piwigo_display.legacy_password')"],
+  [$install, "\$file_system->deleteRecursive(\$directory)"],
 ];
 
 foreach ($required as [$haystack, $needle]) {
