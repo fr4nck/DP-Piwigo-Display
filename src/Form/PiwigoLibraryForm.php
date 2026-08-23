@@ -30,7 +30,7 @@ final class PiwigoLibraryForm extends AddFormBase {
 
   public static function create(ContainerInterface $container): static {
     return new static(
-      $configuration = $container->get('entity_type.manager'),
+      $container->get('entity_type.manager'),
       $container->get('media_library.ui_builder'),
       $container->get('media_library.opener_resolver'),
       $container->get('piwigo_display.client'),
