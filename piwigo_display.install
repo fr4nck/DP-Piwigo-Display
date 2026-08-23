@@ -34,6 +34,21 @@ function piwigo_display_update_10001(): string {
 }
 
 /**
+ * Purges legacy public thumbnail files after private-cache hardening.
+ */
+function piwigo_display_update_10002(): string {
+  $file_system = \Drupal::service('file_system');
+  $directory = 'public://piwigo_display/thumbnails';
+  $real_path = $file_system->realpath($directory);
+
+  if (is_string($real_path) && is_dir($real_path)) {
+    $file_system->deleteRecursive($directory);
+  }
+
+  return 'Purged legacy public Piwigo thumbnail cache. Public thumbnails will regenerate on demand; authenticated thumbnails are no longer persisted there.';
+}
+
+/**
  * Removes local credentials and generated cache files on uninstall.
  */
 function piwigo_display_uninstall(): void {
