@@ -7,6 +7,7 @@ namespace Drupal\piwigo_display\Service;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\State\StateInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Cookie\CookieJar;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,7 @@ final class PiwigoClient {
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly ConfigFactoryInterface $configFactory,
+    private readonly StateInterface $state,
     private readonly CacheBackendInterface $cache,
     private readonly LoggerInterface $logger,
   ) {}
@@ -202,8 +204,7 @@ final class PiwigoClient {
       'User-Agent' => 'Drupal Piwigo Display/0.1.0',
     ];
     $apiKey = $this->getApiKey();
-    $sendApiKey = $apiKey !== '';
-    if ($sendApiKey) {
+    if ($apiKey !== '') {
       $headers['X-PIWIGO-API'] = $apiKey;
     }
 
@@ -440,7 +441,19 @@ final class PiwigoClient {
   }
 
   private function getLegacyPassword(): string {
-    return (string) $this->getSetting('legacy_password', '');
+    $settingsOverride = Settings::get('piwigo_display.legacy_password', NULL);
+    if ($settingsOverride !== NULL) {
+      return (string) $settingsOverride;
+    }
+
+    $stored = $this->state->get('piwigo_display.legacy_password', NULL);
+    if ($stored !== NULL) {
+      return (string) $stored;
+    }
+
+    // One-release compatibility fallback until update_10001 has migrated old
+    // installations that stored the password in exportable configuration.
+    return (string) ($this->configFactory->get('piwigo_display.settings')->get('legacy_password') ?? '');
   }
 
   private function getBaseUrl(): string {
@@ -520,7 +533,19 @@ final class PiwigoClient {
   }
 
   private function getApiKey(): string {
-    return trim((string) Settings::get('piwigo_display.api_key', $this->configFactory->get('piwigo_display.settings')->get('api_key') ?? ''));
+    $settingsOverride = Settings::get('piwigo_display.api_key', NULL);
+    if ($settingsOverride !== NULL) {
+      return trim((string) $settingsOverride);
+    }
+
+    $stored = $this->state->get('piwigo_display.api_key', NULL);
+    if ($stored !== NULL) {
+      return trim((string) $stored);
+    }
+
+    // One-release compatibility fallback until update_10001 has migrated old
+    // installations that stored the API key in exportable configuration.
+    return trim((string) ($this->configFactory->get('piwigo_display.settings')->get('api_key') ?? ''));
   }
 
   private function getTimeout(): int {
