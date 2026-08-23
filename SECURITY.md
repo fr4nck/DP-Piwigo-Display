@@ -21,3 +21,10 @@ Use GitHub's private vulnerability reporting feature when it is enabled for this
 - Authenticated connections require HTTPS.
 - API keys and session cookies are never forwarded outside the exact configured Piwigo origin (scheme, host and effective port).
 - HTTP redirects are disabled for authenticated API and server-side asset requests.
+
+## Private image handling
+
+- Anonymous/public Piwigo thumbnails may be cached in Drupal's public file system for performance.
+- When Piwigo authentication is configured, Media Library preview bytes are never persisted in `public://` or `temporary://`; they are fetched server-side and streamed in memory through the permission-protected thumbnail route.
+- Update hook `10002` removes thumbnail files produced by older development builds before this distinction existed.
+- This hardening currently covers Media Library previews. Frontend formatters still reference Piwigo derivative URLs directly; installations requiring Drupal access control to govern the binary image itself need the planned access-aware proxy transport.
