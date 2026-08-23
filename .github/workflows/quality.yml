@@ -31,7 +31,7 @@ jobs:
         run: composer validate --strict --no-check-publish
 
       - name: Lint PHP
-        run: find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find . -type f \( -name '*.php' -o -name '*.module' -o -name '*.install' -o -name '*.inc' \) -print0 | xargs -0 -n1 php -l
 
       - name: Validate JavaScript syntax
         run: node --check js/piwigo-display-library.js
@@ -51,6 +51,9 @@ jobs:
 
       - name: Run thumbnail cache regression test
         run: php tests/thumbnail_cache.php
+
+      - name: Run secret-storage regression test
+        run: php tests/secret_storage.php
 
   drupal-compatibility:
     runs-on: ubuntu-latest
