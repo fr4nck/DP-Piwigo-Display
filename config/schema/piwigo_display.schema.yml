@@ -5,15 +5,9 @@ piwigo_display.settings:
     base_url:
       type: uri
       label: 'Piwigo base URL'
-    api_key:
-      type: string
-      label: 'Piwigo API key'
     legacy_username:
       type: string
       label: 'Legacy Piwigo username'
-    legacy_password:
-      type: string
-      label: 'Legacy Piwigo password'
     request_timeout:
       type: integer
       label: 'HTTP request timeout'

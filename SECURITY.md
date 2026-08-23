@@ -13,6 +13,11 @@ Use GitHub's private vulnerability reporting feature when it is enabled for this
 ## Credential handling
 
 - Prefer Piwigo personal API keys over username/password authentication.
-- Put production secrets in Drupal `settings.php` rather than exported configuration.
+- Production secrets can be supplied through Drupal `settings.php`; this remains the recommended option for deployment-managed credentials.
+- Secrets entered through the Piwigo Display administration form are stored in Drupal local state, not in exportable configuration.
+- Drupal state is not encryption: database backups can still contain locally stored secrets and must be protected accordingly.
+- Existing installations are migrated automatically so legacy `api_key` and `legacy_password` config values are removed from exported configuration.
+- The administration form never redisplays a stored secret and provides explicit controls to remove locally stored credentials.
 - Authenticated connections require HTTPS.
-- Piwigo binary assets fetched server-side are restricted to the configured Piwigo host.
+- API keys and session cookies are never forwarded outside the exact configured Piwigo origin (scheme, host and effective port).
+- HTTP redirects are disabled for authenticated API and server-side asset requests.

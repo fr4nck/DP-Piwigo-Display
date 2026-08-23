@@ -1,0 +1,50 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Install, update and uninstall hooks for Piwigo Display.
+ */
+
+/**
+ * Moves stored credentials out of exported configuration into local state.
+ */
+function piwigo_display_update_10001(): string {
+  $config = \Drupal::configFactory()->getEditable('piwigo_display.settings');
+  $state = \Drupal::state();
+
+  $api_key = (string) ($config->get('api_key') ?? '');
+  if ($api_key !== '' && $state->get('piwigo_display.api_key', NULL) === NULL) {
+    $state->set('piwigo_display.api_key', $api_key);
+  }
+
+  $legacy_password = (string) ($config->get('legacy_password') ?? '');
+  if ($legacy_password !== '' && $state->get('piwigo_display.legacy_password', NULL) === NULL) {
+    $state->set('piwigo_display.legacy_password', $legacy_password);
+  }
+
+  // These values are secrets and must not remain in exportable configuration.
+  $config
+    ->clear('api_key')
+    ->clear('legacy_password')
+    ->save(TRUE);
+
+  return 'Moved Piwigo credentials from exported configuration to local Drupal state.';
+}
+
+/**
+ * Removes local credentials and generated cache files on uninstall.
+ */
+function piwigo_display_uninstall(): void {
+  $state = \Drupal::state();
+  $state->delete('piwigo_display.api_key');
+  $state->delete('piwigo_display.legacy_password');
+
+  $file_system = \Drupal::service('file_system');
+  $directory = 'public://piwigo_display';
+  $real_path = $file_system->realpath($directory);
+  if (is_string($real_path) && is_dir($real_path)) {
+    $file_system->deleteRecursive($directory);
+  }
+}

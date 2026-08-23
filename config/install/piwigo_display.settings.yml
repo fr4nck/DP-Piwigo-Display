@@ -1,7 +1,5 @@
 base_url: ''
-api_key: ''
 legacy_username: ''
-legacy_password: ''
 request_timeout: 10
 cache_ttl: 300
 default_derivative: 'large'
