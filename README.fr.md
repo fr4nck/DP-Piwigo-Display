@@ -50,9 +50,16 @@ Les valeurs définies dans `settings.php` sont prioritaires. Ne jamais versionne
 
 Les installations de développement existantes qui avaient encore `api_key` ou `legacy_password` dans la configuration sont migrées automatiquement vers l'état local par la mise à jour du module, puis ces anciennes valeurs sont supprimées de la configuration exportable.
 
-## Limite connue de cette première version
+## Miniatures privées et dérivées protégées
 
-Une clé API Piwigo authentifie l'API Web. Certaines installations peuvent en plus protéger les URL binaires des dérivées. La V0.1 met déjà les miniatures de la Media Library en cache côté serveur et transmet la clé API lors de leur récupération, et peut ouvrir une session Piwigo avec un compte de service optionnel. Un mode proxy dédié reste prévu pour les configurations les plus verrouillées.
+Une clé API Piwigo authentifie l'API Web. Certaines installations protègent aussi les URL binaires des dérivées. La Media Library distingue donc désormais deux cas :
+
+- Piwigo public/anonyme : les miniatures peuvent être mises en cache sous `public://piwigo_display/thumbnails` ;
+- Piwigo authentifié : la miniature est récupérée côté serveur et transmise en mémoire par la route Drupal protégée, sans écrire ses octets dans `public://`.
+
+La mise à jour `10002` purge également les anciennes miniatures publiques éventuellement créées par les builds de développement précédents.
+
+Le formatter de rendu public utilise encore directement les URL de dérivées Piwigo. Un proxy tenant compte des droits Drupal reste donc prévu pour les installations où les dérivées elles-mêmes doivent rester privées ou lorsque les droits d'accès d'une page Drupal doivent aussi contrôler l'accès direct à l'image.
 
 ## Recadrage
 
