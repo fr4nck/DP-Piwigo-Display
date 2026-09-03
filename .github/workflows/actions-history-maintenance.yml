@@ -11,26 +11,85 @@ permissions:
 
 jobs:
   cleanup:
-    name: Nettoyage si plus de 100 runs
+    name: Nettoyage multi-branches si plus de 100 runs
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Purger les anciens runs
+      - name: Purger les anciens runs sans pénaliser les branches actives
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          repo="$GITHUB_REPOSITORY"; threshold=100; keep=20
+          repo="$GITHUB_REPOSITORY"
+          threshold=100
+          keep=20
+          grace_days=30
+
           total=$(gh api "repos/$repo/actions/runs?status=completed&per_page=1" --jq '.total_count')
           echo "Runs terminés : $total (seuil : $threshold)"
-          if (( total <= threshold )); then echo "Aucun nettoyage nécessaire."; exit 0; fi
-          declare -A active=(); while IFS= read -r path; do [[ -n "$path" ]] && active["$path"]=1; done < <(gh api "repos/$repo/actions/workflows?per_page=100" --jq '.workflows[] | select(.state != "deleted") | .path')
-          declare -A seen=(); deleted=0
-          while IFS=$'\t' read -r id path; do
+          if (( total <= threshold )); then
+            echo "Aucun nettoyage nécessaire."
+            exit 0
+          fi
+
+          default_branch=$(gh api "repos/$repo" --jq '.default_branch')
+
+          declare -A branches=()
+          while IFS= read -r branch; do
+            [[ -n "$branch" ]] && branches["$branch"]=1
+          done < <(gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[].name')
+
+          declare -A active_default=()
+          while IFS= read -r path; do
+            [[ -n "$path" ]] && active_default["$path"]=1
+          done < <(gh api "repos/$repo/actions/workflows?per_page=100" --jq '.workflows[] | select(.state != "deleted") | .path')
+
+          if (( ${#active_default[@]} == 0 )); then
+            echo "Aucun workflow actif détecté sur la branche principale : nettoyage annulé par sécurité."
+            exit 1
+          fi
+
+          cutoff_epoch=$(date -u -d "$grace_days days ago" +%s)
+          runs_file=$(mktemp)
+          trap 'rm -f "$runs_file"' EXIT
+          gh api --paginate "repos/$repo/actions/runs?status=completed&per_page=100" \
+            --jq '.workflow_runs[] | [.id, .path, (.head_branch // "__NO_BRANCH__"), .created_at] | @tsv' \
+            > "$runs_file"
+
+          declare -A seen=()
+          deleted=0
+          grace_protected=0
+
+          while IFS=$'\t' read -r id path branch created_at; do
             [[ -z "$id" ]] && continue
-            if [[ -z "${active[$path]+x}" ]]; then gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null; ((deleted+=1)); continue; fi
-            count=${seen[$path]:-0}
-            if (( count < keep )); then seen["$path"]=$((count + 1)); else gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null; ((deleted+=1)); fi
-          done < <(gh api --paginate "repos/$repo/actions/runs?status=completed&per_page=100" --jq '.workflow_runs[] | [.id, .path] | @tsv')
+
+            if [[ -n "${branches[$branch]+x}" ]]; then
+              if [[ "$branch" == "$default_branch" && -z "${active_default[$path]+x}" ]]; then
+                gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null
+                ((deleted+=1))
+                continue
+              fi
+
+              key="$branch|$path"
+              count=${seen[$key]:-0}
+              if (( count < keep )); then
+                seen["$key"]=$((count + 1))
+              else
+                gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null
+                ((deleted+=1))
+              fi
+              continue
+            fi
+
+            created_epoch=$(date -u -d "$created_at" +%s)
+            if (( created_epoch <= cutoff_epoch )); then
+              gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null
+              ((deleted+=1))
+            else
+              ((grace_protected+=1))
+            fi
+          done < "$runs_file"
+
           echo "Nettoyage terminé : $deleted run(s) supprimé(s)."
+          echo "Runs de branches absentes protégés par le délai de $grace_days jours : $grace_protected."
