@@ -1,0 +1,36 @@
+name: Entretien historique GitHub Actions
+
+on:
+  schedule:
+    - cron: "37 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    name: Nettoyage si plus de 100 runs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Purger les anciens runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="$GITHUB_REPOSITORY"; threshold=100; keep=20
+          total=$(gh api "repos/$repo/actions/runs?status=completed&per_page=1" --jq '.total_count')
+          echo "Runs terminés : $total (seuil : $threshold)"
+          if (( total <= threshold )); then echo "Aucun nettoyage nécessaire."; exit 0; fi
+          declare -A active=(); while IFS= read -r path; do [[ -n "$path" ]] && active["$path"]=1; done < <(gh api "repos/$repo/actions/workflows?per_page=100" --jq '.workflows[] | select(.state != "deleted") | .path')
+          declare -A seen=(); deleted=0
+          while IFS=$'\t' read -r id path; do
+            [[ -z "$id" ]] && continue
+            if [[ -z "${active[$path]+x}" ]]; then gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null; ((deleted+=1)); continue; fi
+            count=${seen[$path]:-0}
+            if (( count < keep )); then seen["$path"]=$((count + 1)); else gh api --method DELETE "repos/$repo/actions/runs/$id" >/dev/null; ((deleted+=1)); fi
+          done < <(gh api --paginate "repos/$repo/actions/runs?status=completed&per_page=100" --jq '.workflow_runs[] | [.id, .path] | @tsv')
+          echo "Nettoyage terminé : $deleted run(s) supprimé(s)."
