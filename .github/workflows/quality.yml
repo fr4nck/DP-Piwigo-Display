@@ -62,6 +62,9 @@ jobs:
       - name: Run secret-storage regression test
         run: php tests/secret_storage.php
 
+      - name: Run geolocation contract regression test
+        run: php tests/geolocation.php
+
   drupal-compatibility:
     runs-on: ubuntu-latest
     strategy:
