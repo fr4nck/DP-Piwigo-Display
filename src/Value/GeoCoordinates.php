@@ -11,11 +11,11 @@ namespace Drupal\piwigo_display\Value;
  * opposite axis order: longitude, latitude. Keeping both conversions here
  * prevents silent axis inversions when cartography support is added later.
  */
-final readonly class GeoCoordinates {
+final class GeoCoordinates {
 
   private function __construct(
-    public float $latitude,
-    public float $longitude,
+    public readonly float $latitude,
+    public readonly float $longitude,
   ) {}
 
   /**
