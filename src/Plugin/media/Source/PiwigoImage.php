@@ -17,6 +17,7 @@ use Drupal\media\MediaTypeInterface;
 use Drupal\piwigo_display\Form\PiwigoLibraryForm;
 use Drupal\piwigo_display\Service\PiwigoClient;
 use Drupal\piwigo_display\Service\ThumbnailManager;
+use Drupal\piwigo_display\Value\GeoCoordinates;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -83,6 +84,8 @@ final class PiwigoImage extends MediaSourceBase {
       'description' => $this->t('Description'),
       'display_url' => $this->t('Piwigo derivative URL'),
       'piwigo_id' => $this->t('Piwigo image ID'),
+      'latitude' => $this->t('Latitude'),
+      'longitude' => $this->t('Longitude'),
     ];
   }
 
@@ -107,6 +110,11 @@ final class PiwigoImage extends MediaSourceBase {
       return parent::getMetadata($media, $attribute_name);
     }
 
+    $coordinates = GeoCoordinates::fromPiwigo(
+      $image['latitude'] ?? NULL,
+      $image['longitude'] ?? NULL,
+    );
+
     return match ($attribute_name) {
       'default_name' => (string) ($image['name'] ?? ('Piwigo image ' . $id)),
       'thumbnail_uri' => $this->thumbnailManager->getLocalThumbnailUri($image) ?? parent::getMetadata($media, 'thumbnail_uri'),
@@ -116,6 +124,8 @@ final class PiwigoImage extends MediaSourceBase {
       'description' => trim(strip_tags((string) ($image['comment'] ?? ''))),
       'display_url' => (string) ($image['display_url'] ?? ''),
       'piwigo_id' => $id,
+      'latitude' => $coordinates?->latitude,
+      'longitude' => $coordinates?->longitude,
       default => parent::getMetadata($media, $attribute_name),
     };
   }
