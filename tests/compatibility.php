@@ -5,8 +5,10 @@ declare(strict_types=1);
 use Composer\Autoload\ClassLoader;
 use Composer\InstalledVersions;
 use Drupal\media\MediaSourceBase;
+use Drupal\media\MediaSourceInterface;
 use Drupal\media_library\Form\AddFormBase;
 use Drupal\media_library\MediaLibraryState;
+use Drupal\piwigo_display\Controller\DerivativeController;
 use Drupal\piwigo_display\Controller\ThumbnailController;
 use Drupal\piwigo_display\Form\PiwigoLibraryForm;
 use Drupal\piwigo_display\Form\SettingsForm;
@@ -47,6 +49,7 @@ $classes = [
   PiwigoClient::class,
   ThumbnailManager::class,
   ThumbnailController::class,
+  DerivativeController::class,
   SettingsForm::class,
   PiwigoLibraryForm::class,
   PiwigoImage::class,
@@ -95,6 +98,7 @@ $requiredCoreMethods = [
   [MediaLibraryState::class, 'hasSlotsAvailable'],
   [MediaLibraryState::class, 'getAvailableSlots'],
   [MediaSourceBase::class, 'getSourceFieldDefinition'],
+  [MediaSourceInterface::class, 'getSourceFieldValue'],
 ];
 foreach ($requiredCoreMethods as [$class, $method]) {
   try {

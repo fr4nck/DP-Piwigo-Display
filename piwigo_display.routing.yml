@@ -13,3 +13,16 @@ piwigo_display.thumbnail:
   requirements:
     _permission: 'create media'
     image_id: '\d+'
+
+piwigo_display.derivative:
+  path: '/piwigo-display/media/{media}/derivative/{derivative}'
+  defaults:
+    _controller: '\Drupal\piwigo_display\Controller\DerivativeController::derivative'
+  requirements:
+    _entity_access: 'media.view'
+    media: '\d+'
+    derivative: 'square|thumb|xsmall|small|medium|large|xlarge|xxlarge'
+  options:
+    parameters:
+      media:
+        type: 'entity:media'
