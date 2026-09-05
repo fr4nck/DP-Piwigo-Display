@@ -1,12 +1,14 @@
 # Piwigo Display for Drupal
 
-Development module that connects Drupal Media Library to a Piwigo photo library.
+Drupal module that connects Drupal Media Library to a Piwigo photo library.
 
 The first goal is DAM-style editorial use: editors can browse/search Piwigo, select existing images and create Drupal Media entities that reference the Piwigo image ID. The original file does not need to be downloaded to and uploaded again from the editor's workstation.
 
 ## Status
 
-`0.1.0-dev` — initial functional scaffold for Drupal 10.3 and Drupal 11.
+`0.1.0-alpha1` — first public alpha for Drupal 10.3+ and Drupal 11.
+
+This alpha has extensive static/regression coverage and compatibility checks against Composer-installed Drupal 10 and Drupal 11, but it has **not yet completed a full end-to-end validation on a bootstrapped Drupal site connected to a live Piwigo instance**. Use it for evaluation and integration testing before production deployment.
 
 Implemented:
 
@@ -22,11 +24,13 @@ Implemented:
 - Media Library add form with search, album selector, previews and multi-selection;
 - server-side thumbnail cache under `public://piwigo_display/thumbnails` for anonymous/public Piwigo libraries only;
 - authenticated Media Library previews streamed in memory through the protected Drupal route, without persisting their bytes in `public://`;
+- signed Media Library thumbnail URLs;
 - field formatter rendering a chosen Piwigo derivative;
 - access-aware Drupal proxy for frontend derivatives from authenticated Piwigo libraries, protected by the Media entity `view` access check;
 - connection/settings administration;
 - non-exportable local secret storage for credentials entered through the administration form;
-- validated WGS84 latitude/longitude metadata with explicit Leaflet and GeoJSON axis-order contracts.
+- validated WGS84 latitude/longitude metadata with explicit Leaflet and GeoJSON axis-order contracts;
+- explicit cartography security boundary with no runtime dependency on the Piwigo OpenStreetMap plugin.
 
 Not implemented yet:
 
@@ -35,6 +39,7 @@ Not implemented yet:
 - pagination beyond the first result page in the Media Library UI;
 - advanced tag/date filters;
 - optional cartographic integration;
+- mass-map GPS batch strategy;
 - automated Drupal.org packaging/tests.
 
 ## Installation

@@ -1,6 +1,12 @@
 # Piwigo Display pour Drupal
 
-Module en cours de développement pour utiliser Piwigo comme photothèque/DAM depuis la Media Library de Drupal.
+Module Drupal permettant d'utiliser Piwigo comme photothèque/DAM depuis la Media Library de Drupal.
+
+## Statut
+
+`0.1.0-alpha1` — première alpha publique pour Drupal 10.3+ et Drupal 11.
+
+Cette alpha dispose d'une couverture importante de tests de régression et de compatibilité avec de vrais paquets Drupal 10/11 installés par Composer. En revanche, **le parcours complet n'a pas encore été validé de bout en bout sur un site Drupal réellement démarré, connecté à une instance Piwigo réelle**. Elle est donc destinée à l'évaluation et aux tests d'intégration avant déploiement en production.
 
 ## Objectif de la V0.1
 
@@ -52,14 +58,33 @@ Les installations de développement existantes qui avaient encore `api_key` ou `
 
 ## Miniatures privées et dérivées protégées
 
-Une clé API Piwigo authentifie l'API Web. Certaines installations protègent aussi les URL binaires des dérivées. La Media Library distingue donc désormais deux cas :
+Une clé API Piwigo authentifie l'API Web. Certaines installations protègent aussi les URL binaires des dérivées. La Media Library distingue donc deux cas :
 
 - Piwigo public/anonyme : les miniatures peuvent être mises en cache sous `public://piwigo_display/thumbnails` ;
 - Piwigo authentifié : la miniature est récupérée côté serveur et transmise en mémoire par la route Drupal protégée, sans écrire ses octets dans `public://`.
 
 La mise à jour `10002` purge également les anciennes miniatures publiques éventuellement créées par les builds de développement précédents.
 
-Le formatter de rendu public utilise encore directement les URL de dérivées Piwigo. Un proxy tenant compte des droits Drupal reste donc prévu pour les installations où les dérivées elles-mêmes doivent rester privées ou lorsque les droits d'accès d'une page Drupal doivent aussi contrôler l'accès direct à l'image.
+Le rendu frontend applique désormais la même frontière de confiance. Pour une photothèque Piwigo publique, le formatter peut utiliser directement les URL de dérivées. Pour une connexion Piwigo authentifiée, il génère une route Drupal liée à l'entité Media : Drupal vérifie l'accès `media.view`, récupère la dérivée côté serveur et la transmet sans stockage binaire persistant. Les identifiants et cookies Piwigo ne sont jamais envoyés au navigateur.
+
+Les URL de miniatures privées de la Media Library sont en outre signées par Drupal afin de limiter l'énumération arbitraire des identifiants d'images Piwigo.
+
+## Géolocalisation et cartographie
+
+Piwigo Display sait exposer les coordonnées `latitude` et `longitude` validées provenant de `pwg.images.getInfo`. Les bornes WGS84 sont contrôlées, zéro est une valeur valide, et l'ordre des axes est explicite pour Leaflet (`[lat, lng]`) et GeoJSON (`[lng, lat]`).
+
+Le cœur du module ne dépend pas du plugin Piwigo OpenStreetMap, n'appelle pas directement les services publics de tuiles OSM ou Nominatim et ne charge pas Leaflet depuis un CDN public. Une éventuelle cartographie restera une intégration Drupal optionnelle.
+
+## Limites de cette alpha
+
+Ne sont notamment pas encore implémentés :
+
+- recadrage/focal point non destructif ;
+- pagination au-delà de la première page de résultats Media Library ;
+- filtres avancés par tags/dates ;
+- interface cartographique optionnelle ;
+- stratégie batch GPS pour les cartes de masse ;
+- automatisation de packaging/publication Drupal.org.
 
 ## Recadrage
 
