@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'piwigo_display.info.yml'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(awk -F"'" '/^version:/ {print $2; exit}' piwigo_display.info.yml)"
+
+          if [[ -z "$version" ]]; then
+            echo "Unable to read module version from piwigo_display.info.yml" >&2
+            exit 1
+          fi
+
+          if [[ "$version" == *-dev ]]; then
+            echo "Development version $version: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)[0-9]+)?$ ]]; then
+            echo "Unsupported release version: $version" >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null 2>&1; then
+            echo "Tag $version already exists: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build Drupal module archive
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git archive \
+            --format=zip \
+            --prefix=piwigo_display/ \
+            HEAD \
+            -o "piwigo_display-${VERSION}.zip"
+
+      - name: Extract release notes
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          awk -v version="$VERSION" '
+            index($0, "## " version " ") == 1 { capture = 1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            printf 'Piwigo Display %s\n\nSee CHANGELOG.md for details.\n' "$VERSION" > release-notes.md
+          fi
+
+      - name: Publish GitHub release
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          release_args=(
+            "$VERSION"
+            "piwigo_display-${VERSION}.zip#Piwigo Display Drupal module"
+            --target "$GITHUB_SHA"
+            --title "Piwigo Display $VERSION"
+            --notes-file release-notes.md
+          )
+
+          if [[ "$VERSION" =~ -(alpha|beta|rc)[0-9]+$ ]]; then
+            release_args+=(--prerelease)
+          fi
+
+          gh release create "${release_args[@]}"
