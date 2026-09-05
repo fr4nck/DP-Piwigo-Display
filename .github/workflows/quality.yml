@@ -65,6 +65,9 @@ jobs:
       - name: Run geolocation contract regression test
         run: php tests/geolocation.php
 
+      - name: Run cartography boundary regression test
+        run: php tests/cartography_boundary.php
+
   drupal-compatibility:
     runs-on: ubuntu-latest
     strategy:
