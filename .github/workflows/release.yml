@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'piwigo_display.info.yml'
+      - 'CHANGELOG.md'
       - '.github/workflows/release.yml'
 
 permissions:
@@ -28,38 +29,41 @@ jobs:
       - name: Resolve release version
         id: version
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           version="$(awk -F"'" '/^version:/ {print $2; exit}' piwigo_display.info.yml)"
 
           if [[ -z "$version" ]]; then
-            echo "Unable to read module version from piwigo_display.info.yml" >&2
+            echo "Impossible de lire la version du module dans piwigo_display.info.yml" >&2
             exit 1
           fi
 
           if [[ "$version" == *-dev ]]; then
-            echo "Development version $version: nothing to publish."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Version de développement $version : aucune release à publier."
+            echo "mode=skip" >> "$GITHUB_OUTPUT"
             echo "version=$version" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)[0-9]+)?$ ]]; then
-            echo "Unsupported release version: $version" >&2
+            echo "Format de version non pris en charge : $version" >&2
             exit 1
           fi
 
-          if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null 2>&1; then
-            echo "Tag $version already exists: nothing to publish."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "La release $version existe déjà : ses notes seront mises à jour sans republier l’artefact."
+            echo "mode=update" >> "$GITHUB_OUTPUT"
           else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "La release $version n’existe pas encore : création complète."
+            echo "mode=create" >> "$GITHUB_OUTPUT"
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build Drupal module archive
-        if: steps.version.outputs.publish == 'true'
+        if: steps.version.outputs.mode == 'create'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -72,7 +76,7 @@ jobs:
             -o "piwigo_display-${VERSION}.zip"
 
       - name: Extract release notes
-        if: steps.version.outputs.publish == 'true'
+        if: steps.version.outputs.mode != 'skip'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -85,11 +89,11 @@ jobs:
           ' CHANGELOG.md > release-notes.md
 
           if [[ ! -s release-notes.md ]]; then
-            printf 'Piwigo Display %s\n\nSee CHANGELOG.md for details.\n' "$VERSION" > release-notes.md
+            printf 'Piwigo Display %s\n\nVoir CHANGELOG.md pour le détail.\n' "$VERSION" > release-notes.md
           fi
 
       - name: Publish GitHub release
-        if: steps.version.outputs.publish == 'true'
+        if: steps.version.outputs.mode == 'create'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,7 +103,7 @@ jobs:
 
           release_args=(
             "$VERSION"
-            "piwigo_display-${VERSION}.zip#Piwigo Display Drupal module"
+            "piwigo_display-${VERSION}.zip#Module Drupal Piwigo Display"
             --target "$GITHUB_SHA"
             --title "Piwigo Display $VERSION"
             --notes-file release-notes.md
@@ -110,3 +114,24 @@ jobs:
           fi
 
           gh release create "${release_args[@]}"
+
+      - name: Update existing release notes
+        if: steps.version.outputs.mode == 'update'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          edit_args=(
+            "$VERSION"
+            --title "Piwigo Display $VERSION"
+            --notes-file release-notes.md
+          )
+
+          if [[ "$VERSION" =~ -(alpha|beta|rc)[0-9]+$ ]]; then
+            edit_args+=(--prerelease)
+          fi
+
+          gh release edit "${edit_args[@]}"
