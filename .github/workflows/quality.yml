@@ -56,6 +56,9 @@ jobs:
       - name: Run protected thumbnail regression test
         run: php tests/protected_thumbnails.php
 
+      - name: Run thumbnail capability regression test
+        run: php tests/thumbnail_capability.php
+
       - name: Run protected frontend derivative regression test
         run: php tests/protected_frontend_derivatives.php
 
