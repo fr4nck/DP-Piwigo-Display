@@ -21,7 +21,7 @@ Les points structurants sont les suivants :
 - `pwg.images.setInfo` **n'a pas de paramètres `latitude`/`longitude` dans le core**. L'écriture GPS effectuée par le plugin OpenStreetMap est une extension du contrat via un hook du plugin, et non un contrat core sur lequel Piwigo Display doit s'appuyer.
 - Les contrôles Piwigo de visibilité/album/niveau sont appliqués à l'image avant que `getInfo` fournisse ses métadonnées. Il n'existe en revanche pas de permission séparée « GPS » : un principal Piwigo autorisé à lire l'image peut lire sa géolocalisation si elle existe.
 - Le plugin officiel `piwigo-openstreetmap`, révision courante 16.b, conserve plusieurs défauts de logique autour de zéro, une source de données incohérente dans son hook `setInfo`, Leaflet 0.7.7 et plusieurs fournisseurs de tuiles historiques ou obsolètes.
-- Deux constats du plugin relèvent d'une **divulgation responsable privée**. Un problème de sécurité upstream est confirmé statiquement ; un second sink de sécurité upstream a été identifié et son exploitabilité complète reste à confirmer. Les détails techniques sont volontairement retenus dans ce dépôt public.
+- Deux constats du plugin relèvent d'une **divulgation responsable privée**. Un problème de sécurité upstream est confirmé statiquement ; un second constat de sécurité upstream a été identifié et son exploitabilité complète reste à confirmer. Les détails techniques sont volontairement retenus dans ce dépôt public.
 - Les services OpenStreetMap doivent être distingués : le serveur de tuiles standard sert un fond de carte, Nominatim est un service de géocodage, l'API OSM est une API d'édition. Aucun des trois n'est une « API cartographique générique » interchangeable.
 
 La future fonctionnalité cartographique est donc **GO SOUS CONDITIONS** : conserver la frontière Piwigo → validation Drupal → rendu ; ne pas dépendre de `piwigo-openstreetmap` ; éviter le N+1 ; réappliquer les contrôles d'accès Drupal ; traiter les coordonnées comme données potentiellement sensibles ; utiliser un Leaflet maintenu et un fournisseur de tuiles configurable et conforme.
@@ -152,13 +152,9 @@ Correction upstream recommandée : une seule source de données, contrôles expl
 
 Un problème de sécurité upstream affectant un chemin de consultation du plugin a été identifié par audit statique. Les détails techniques sont volontairement retenus et doivent être transmis à Piwigo par son canal de sécurité privé avant toute publication coordonnée.
 
-Aucun détail permettant de reconstruire le chemin concerné n'est publié dans ce dépôt. L'impact et la correction doivent être coordonnés avec l'équipe Piwigo.
-
 ### 4.5 Second constat de sécurité upstream — détail retenu
 
 Un second constat upstream concerne le traitement de métadonnées dans le rendu cartographique. Un sink potentiellement exploitable a été identifié statiquement ; son exploitabilité complète reste à confirmer et les détails sont retenus pour divulgation privée.
-
-Aucun nom de fonction, chaîne de transformation, sink précis, condition d'exploitation ou payload n'est publié ici.
 
 ### 4.6 Leaflet et dépendances JavaScript embarquées
 
@@ -384,13 +380,12 @@ Notre module doit **éviter** ces dépendances et ne dépendre d'aucune correcti
 
 ## 10. Divulgation responsable
 
-Deux constats de sécurité upstream existent et ne sont pas détaillés dans ce dépôt public.
+Deux constats de sécurité upstream existent. Ils ne sont pas détaillés dans ce dépôt public.
 
 - Le canal officiel de signalement privé est `security@piwigo.org`.
 - Aucun test n'a été effectué sur une instance Piwigo tierce.
 - Aucun PoC public n'est fourni.
-- Aucun détail technique supplémentaire ne doit être publié avant correction et coordination avec l'équipe Piwigo.
-- La publication coordonnée doit attendre le traitement du signalement et un délai de mise à jour approprié.
+- Toute publication technique complémentaire doit attendre correction et coordination avec l'équipe Piwigo.
 
 ## 11. Conditions de GO pour la future cartographie
 
