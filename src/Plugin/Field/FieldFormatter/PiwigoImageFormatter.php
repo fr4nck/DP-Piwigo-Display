@@ -13,6 +13,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
+use Drupal\media\MediaInterface;
 use Drupal\piwigo_display\Service\PiwigoClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -104,6 +105,9 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
   public function viewElements(FieldItemListInterface $items, $langcode): array {
     $elements = [];
     $cacheTtl = max(0, (int) $this->configFactory->get('piwigo_display.settings')->get('cache_ttl'));
+    $media = $items->getEntity();
+    $authenticated = $this->piwigoClient->usesAuthentication();
+    $derivative = (string) $this->getSetting('derivative');
 
     foreach ($items as $delta => $item) {
       $id = (int) $item->value;
@@ -113,9 +117,24 @@ final class PiwigoImageFormatter extends FormatterBase implements ContainerFacto
 
       try {
         $image = $this->piwigoClient->getImage($id);
-        $url = $this->piwigoClient->getDerivativeUrl($image, (string) $this->getSetting('derivative'));
-        if ($url === '') {
+        if ($image === []) {
           continue;
+        }
+
+        if ($authenticated) {
+          if (!$media instanceof MediaInterface || $media->isNew() || $media->id() === NULL) {
+            continue;
+          }
+          $url = Url::fromRoute('piwigo_display.derivative', [
+            'media' => $media->id(),
+            'derivative' => $derivative,
+          ])->toString();
+        }
+        else {
+          $url = $this->piwigoClient->getDerivativeUrl($image, $derivative);
+          if ($url === '') {
+            continue;
+          }
         }
 
         $image_element = [
