@@ -23,16 +23,18 @@ Implemented:
 - server-side thumbnail cache under `public://piwigo_display/thumbnails` for anonymous/public Piwigo libraries only;
 - authenticated Media Library previews streamed in memory through the protected Drupal route, without persisting their bytes in `public://`;
 - field formatter rendering a chosen Piwigo derivative;
+- access-aware Drupal proxy for frontend derivatives from authenticated Piwigo libraries, protected by the Media entity `view` access check;
 - connection/settings administration;
-- non-exportable local secret storage for credentials entered through the administration form.
+- non-exportable local secret storage for credentials entered through the administration form;
+- validated WGS84 latitude/longitude metadata with explicit Leaflet and GeoJSON axis-order contracts.
 
 Not implemented yet:
 
 - non-destructive crop/focal-point workflow;
 - optional local cache/import of display derivatives;
-- dedicated access-aware proxy transport for frontend derivatives from protected Piwigo libraries;
 - pagination beyond the first result page in the Media Library UI;
 - advanced tag/date filters;
+- optional cartographic integration;
 - automated Drupal.org packaging/tests.
 
 ## Installation
@@ -71,13 +73,19 @@ Piwigo 16 introduced personal API keys. Starting with Piwigo 16.1, keys are sent
 
 The key authenticates Web API calls. Some installations also protect binary derivative URLs. Media Library previews therefore use two different paths: anonymous/public libraries may use the local public thumbnail cache, while authenticated libraries are fetched server-side and streamed in memory through the permission-protected Drupal thumbnail route. Authenticated preview bytes are not stored in `public://`; update `10002` also purges thumbnails generated there by earlier development builds.
 
-The normal frontend formatter still renders Piwigo derivative URLs directly. A dedicated access-aware proxy remains planned for deployments where those derivative URLs themselves must stay protected or where Drupal page access must also govern direct image access.
+Frontend rendering follows the same trust boundary. Public Piwigo libraries keep direct derivative URLs. For an authenticated Piwigo connection, the formatter emits a Drupal derivative route tied to the Media entity. Drupal checks `media.view` before the controller resolves the Piwigo image ID, fetches the derivative server-side and streams known raster formats with private-cache, `nosniff`, CSP and no-referrer headers. Piwigo credentials and session cookies never reach the browser.
 
 ## Rendering model
 
 The Drupal Media entity stores only the canonical Piwigo image ID. Metadata and derivative URLs are resolved from Piwigo. This keeps Piwigo as the source of truth and avoids duplicating originals by default.
 
-The initial formatter can render `square`, `thumb`, `xsmall`, `small`, `medium`, `large`, `xlarge` or `xxlarge` derivatives when available.
+The formatter can render `square`, `thumb`, `xsmall`, `small`, `medium`, `large`, `xlarge` or `xxlarge` derivatives when available. Authenticated frontend derivatives are proxied without persistent binary storage. The proxy deliberately accepts only known raster signatures (JPEG, PNG, GIF, WebP); unknown formats such as SVG are not reflected to the browser.
+
+## Geolocation and cartography
+
+Piwigo Display can expose validated `latitude` and `longitude` metadata returned by `pwg.images.getInfo`. Latitude must be between -90 and 90, longitude between -180 and 180, and zero is valid on both axes.
+
+The module core does not depend on the Piwigo OpenStreetMap plugin, does not call the public OSM tile or Nominatim services directly, and does not load Leaflet from a public CDN. Future cartography remains an optional Drupal integration. See `docs/GEOLOCATION.md` and `docs/CARTOGRAPHY-SECURITY.md`.
 
 ## Crop roadmap
 
