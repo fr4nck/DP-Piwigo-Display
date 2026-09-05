@@ -12,6 +12,7 @@ piwigo_display.thumbnail:
     _controller: '\Drupal\piwigo_display\Controller\ThumbnailController::thumbnail'
   requirements:
     _permission: 'create media'
+    _csrf_token: 'TRUE'
     image_id: '\d+'
 
 piwigo_display.derivative:
